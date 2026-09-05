@@ -2,7 +2,7 @@
  * @description Controller for Attendee Event Booking and Payment Confirmation.
  * Handles event discovery, ticket type availability, and secure payment confirmation.
  */
-public with sharing class EventBookingController {
+public without sharing class EventBookingController {
 
     /**
      * @description Fetches all approved, published events where registration is currently open.

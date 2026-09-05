@@ -241,6 +241,26 @@
         <tab>Attendee__c</tab>
         <visibility>Visible</visibility>
     </tabSettings>
+    <tabSettings>
+        <tab>Event_Booking</tab>
+        <visibility>Visible</visibility>
+    </tabSettings>
+
+    <!-- Apex Class Accesses -->
+    <classAccesses>
+        <apexClass>EventBookingController</apexClass>
+        <enabled>true</enabled>
+    </classAccesses>
+    <classAccesses>
+        <apexClass>PrintableTicketExtension</apexClass>
+        <enabled>true</enabled>
+    </classAccesses>
+
+    <!-- Visualforce Page Accesses -->
+    <pageAccesses>
+        <apexPage>PrintableTicket</apexPage>
+        <enabled>true</enabled>
+    </pageAccesses>
 
     <!-- Application Visibility -->
     <applicationVisibilities>
