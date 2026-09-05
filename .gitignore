@@ -1,0 +1,92 @@
+# =============================================================================
+# Salesforce CLI & Local State (CRITICAL: Contains Auth Tokens & Org Secrets)
+# =============================================================================
+.sf/
+.sfdx/
+.apex/
+**/.local-tokens*
+**/*session*
+*.org.json
+auth*.json
+
+# =============================================================================
+# Sensitive Credentials, Private Keys & Certificates
+# =============================================================================
+*.pem
+*.key
+*.pkcs12
+*.pfx
+*.crt
+*.cer
+jwt.key
+server.key
+oauth*
+credentials*.json
+secrets*.json
+
+# =============================================================================
+# Environment Variables & Local Configs
+# =============================================================================
+.env
+.env.*
+*.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# =============================================================================
+# Scratch Scripts & Seed Data (Personal Emails, Users, One-Off Scripts)
+# =============================================================================
+scratch/
+temp/
+tmp/
+*.scratch.*
+
+# =============================================================================
+# Logs, Diagnostics & Test Outputs
+# =============================================================================
+*.log
+*.apexlog
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+coverage/
+.nyc_output/
+
+# =============================================================================
+# IDE, Editor & AI Assistant Local Directories
+# =============================================================================
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+*~
+*.sublime-workspace
+*.sublime-project
+.claude/
+.cursor/
+.agents/
+
+# =============================================================================
+# OS Generated Files (Windows & macOS)
+# =============================================================================
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+[Dd]esktop.ini
+
+# =============================================================================
+# Node & Build Dependencies (If applicable)
+# =============================================================================
+node_modules/
+dist/
+build/

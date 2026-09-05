@@ -1,0 +1,24 @@
+# Salesforce DX ignore file
+# Exclude documentation and legacy workflow source directories from source tracking and deployment
+.agents/**
+.git/**
+.github/**
+.vscode/**
+docxx/**
+docxx\**
+Attendee_Workflow/**
+Attendee_Workflow\**
+Event_Creation_Screen_Flow/**
+Event_Creation_Screen_Flow\**
+Registration handler/**
+Registration handler\**
+E2E_Tests/**
+E2E_Tests\**
+Reporting/**
+Reporting\**
+Approval_Process/**
+Approval_Process\**
+scratch/**
+scratch\**
+**/jsconfig.json
+**/.eslintrc.json
