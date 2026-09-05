@@ -92,6 +92,17 @@
         <viewAllRecords>false</viewAllRecords>
     </objectPermissions>
 
+    <!-- Object Permissions: Feedback__c (Read Only) -->
+    <objectPermissions>
+        <allowCreate>false</allowCreate>
+        <allowDelete>false</allowDelete>
+        <allowEdit>false</allowEdit>
+        <allowRead>true</allowRead>
+        <modifyAllRecords>false</modifyAllRecords>
+        <object>Feedback__c</object>
+        <viewAllRecords>false</viewAllRecords>
+    </objectPermissions>
+
     <!-- Field Permissions: Attendee__c -->
     <fieldPermissions>
         <editable>true</editable>
@@ -226,6 +237,33 @@
     <fieldPermissions>
         <editable>false</editable>
         <field>Venue__c.Contact_Phone__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+
+    <!-- Field Permissions: Feedback__c (Read Only) -->
+    <fieldPermissions>
+        <editable>false</editable>
+        <field>Feedback__c.Comments__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>false</editable>
+        <field>Feedback__c.Event_Experience__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>false</editable>
+        <field>Feedback__c.Speaker_Rating__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>false</editable>
+        <field>Feedback__c.Submitted_Date_Time__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>false</editable>
+        <field>Feedback__c.Venue_Rating__c</field>
         <readable>true</readable>
     </fieldPermissions>
 
