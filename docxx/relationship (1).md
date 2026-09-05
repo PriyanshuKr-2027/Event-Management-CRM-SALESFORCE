@@ -1,98 +1,154 @@
-# Relationship Model — Lookup vs Master-Detail
+# Relationship Model & Schema Architecture
 
-**Revision note (this version):** Removed the **Event Speaker** junction object and its two
-Master-Detail rows. Replaced with a single direct `Speaker.Event__c` Lookup — see §1 and §4
-below. This is a simplification, not a data-loss concern: nothing else in the project (Apex,
-Flows, Validation Rules) referenced Event Speaker directly.
-
-Rule followed throughout: relationship fields are created **once**, on the child object only.
-Salesforce's automatic related list on the parent covers the reverse direction — a second
-field is never created just to represent that reverse direction.
+> **Module:** Entity Relationships & Data Architecture  
+> **Source of Truth:** `objects/*/fields/*.field-meta.xml` & `ROLE_1_DATA_MODEL_AND_WORKFLOW.md`  
+> **Master Relationships:** **3 Master-Detail Relationships**  
+> **Lookup Relationships:** **11 Custom Lookup Relationships**  
+> **Total Active Relational Links:** **14 Schema Connections**
 
 ---
 
-## 1. Relationship table
+## 1. Complete Relationship Matrix (14 Connections)
 
-| Child Object | Relationship Field | Type | Parent Object | Why this type |
-|---|---|---|---|---|
-| Event | Venue | Lookup | Venue | Event should survive independently of Venue edits/archival; no cascade-delete needed |
-| Event | Organizer | Lookup | User | Standard ownership-style reference; User records are never deleted alongside Events |
-| Ticket Type | Event | **Master-Detail** | Event | Ticket Type has no meaning without its Event; needed for roll-ups (Total Capacity, Booked Seats) up to Event |
-| Registration | Event | **Master-Detail** | Event | Corrected from Lookup — Registration cannot exist without a parent Event, and Event-level reporting/rollups depend on this being Master-Detail |
-| Registration | Attendee | Lookup | Attendee | Attendee record persists independently of any single registration |
-| Registration | Ticket Type | Lookup | Ticket Type | Needs to reference Ticket Type without forcing ownership/cascade-delete inheritance from Ticket Type |
-| Ticket | Registration | **Master-Detail** | Registration | A Ticket only exists because a Registration succeeded; deleting the Registration should remove the Ticket. This is the **only** relationship field on Ticket — Event/Attendee/Ticket Type are reached via this path |
-| Payment | Registration | Lookup | Registration | Deliberately Lookup, not Master-Detail — payment/financial history must be able to persist for audit even if the Registration record is later modified or its status changes; also lets Finance own sharing on Payment independently |
-| Feedback | Event | Lookup | Event | |
-| Feedback | Attendee | Lookup | Attendee | |
-| Feedback | Registration | Lookup | Registration | Used to enforce "one Feedback per Registration" via validation rule, not via Master-Detail cascade |
-| Attendee | User | Lookup | User | New — binds a portal/community Attendee record to its Salesforce User for ownership checks in `EventBookingController.confirmPayment`. Nullable, since not every Attendee has a User account (walk-in/phone registrations created by Registration Team) |
-| **Speaker** | **Event** | **Lookup** | **Event** | **New — replaces the Event Speaker junction.** A Speaker now belongs to at most one Event; a person speaking at multiple events gets a separate Speaker record per event |
-
-> ~~Event Speaker | Event | Master-Detail | Event~~ — **removed this version**
-> ~~Event Speaker | Speaker | Master-Detail | Speaker~~ — **removed this version**
+| # | Child Object | Relationship Field | Type | Parent Object | Required? | Relationship Name | Architectural Justification |
+|---|---|---|---|---|:---:|---|---|
+| 1 | **`Event__c`** | `Venue__c` | **Lookup** | `Venue__c` | **Yes** | `Events` | Venues are independent physical assets that outlive any individual event. Cascade delete is strictly disabled to prevent loss of venue inventory. |
+| 2 | **`Event__c`** | `Organizer__c` | **Lookup** | `User` | No | `Organized_Events` | Standard user assignment link. User accounts must never cascade delete if an event is removed. |
+| 3 | **`Event__c`** | `Approved_By__c` | **Lookup** | `User` | No | `Approved_Events` | Audit trail link indicating which Manager approved the event budget. |
+| 4 | **`Ticket_Type__c`** | `Event__c` | **Master-Detail** | `Event__c` | **Yes** | `Ticket_Types` | **Enables native Roll-up Summaries** on `Event__c` (`Total_Capacity__c`, `Booked_Seats__c`). Ticket tiers have no independent business meaning without their parent event. |
+| 5 | **`Registration__c`** | `Event__c` | **Master-Detail** | `Event__c` | **Yes** | `Registrations` | Connects the booking record to the event lifecycle. Deleting an event cascades to clean up registrations automatically. |
+| 6 | **`Registration__c`** | `Ticket_Type__c` | **Lookup** | `Ticket_Type__c` | **Yes** | `Registrations` | Links registration to the specific pricing tier without imposing a secondary Master-Detail constraint. |
+| 7 | **`Registration__c`** | `Attendee__c` | **Lookup** | `Attendee__c` | **Yes** | `Registrations` | Attendees exist independently of individual events (one customer attends multiple events over time). |
+| 8 | **`Ticket__c`** | `Registration__c` | **Master-Detail** | `Registration__c` | **Yes** | `Tickets` | A physical ticket pass only exists if a registration succeeded. Deleting a registration cascades to delete the ticket. |
+| 9 | **`Payment__c`** | `Registration__c` | **Lookup** | `Registration__c` | **Yes** | `Payments` | **Intentionally Lookup, NOT Master-Detail:** Financial audit records must persist even if a registration is modified. Allows Finance to maintain separate record-level access. |
+| 10| **`Speaker__c`** | `Event__c` | **Lookup** | `Event__c` | No | `Speakers` | Direct lookup architecture. Speakers can exist as independent contacts or belong to an event without forced cascade deletion. |
+| 11| **`Feedback__c`** | `Event__c` | **Lookup** | `Event__c` | **Yes** | `Feedback` | Post-event review linked to the overall event. Kept as Lookup to prevent survey data from interfering with event lifecycle locks. |
+| 12| **`Feedback__c`** | `Attendee__c` | **Lookup** | `Attendee__c` | **Yes** | `Feedback` | Identifies which attendee provided the review. |
+| 13| **`Feedback__c`** | `Registration__c` | **Lookup** | `Registration__c` | **Yes** | `Feedback` | Guarantees that only attendees with a valid confirmed registration can submit feedback (`One_Feedback_Per_Registration` rule). |
+| 14| **`Attendee__c`** | `User__c` | **Lookup** | `User` | No | `Attendees` | Binds a community/portal attendee to their Salesforce User ID for controller ownership checks and portal security. |
 
 ---
 
-## 2. Relationship meaning (cardinality)
+## 2. Visual Entity Relationship Diagram (ERD)
 
 ```
-Venue          1 ── * Event
-User(Organizer)1 ── * Event
-Event          1 ── * Ticket Type
-Event          1 ── * Registration
-Attendee       1 ── * Registration
-Ticket Type    1 ── * Registration
-Registration   1 ── 1 Ticket        (one successful Registration produces at most one Ticket)
-Registration   1 ── * Payment       (retries / partial payments possible)
-Event          1 ── * Feedback
-Attendee       1 ── * Feedback
-Registration   1 ── ≤1 Feedback     (enforced by validation rule, not schema)
-User           1 ── * Attendee      (optional — an Attendee may have no linked User)
-Event          1 ── * Speaker       (a Speaker belongs to at most one Event; a person
-                                     speaking at several events needs one Speaker record each)
+                       ┌─────────────────────────┐
+                       │        Venue__c         │
+                       │─────────────────────────│
+                       │ Name                    │
+                       │ Venue_Capacity__c       │
+                       │ City__c                 │
+                       └────────────┬────────────┘
+                                    │ 1
+                                    │
+                                    │ N (Lookup: Required)
+                                    ▼
+┌─────────────────────────┐   ┌─────────────────────────┐   ┌─────────────────────────┐
+│          User           │───│        Event__c         │───│       Speaker__c        │
+│    (Event Manager)      │ 1 │─────────────────────────│ N │─────────────────────────│
+│ (Organizer / Approver)  │   │ Category__c             │   │ Name                    │
+└─────────────────────────┘   │ Proposed_Budget__c      │   │ Bio__c / Email__c       │
+                              │ Approval_Status__c      │   │ Event__c (Lookup)       │
+                              │ Total_Capacity__c (RS)  │   └─────────────────────────┘
+                              │ Booked_Seats__c (RS)    │
+                              │ Available_Seats__c (FX) │
+                              └───────┬─────────┬───────┘
+                                      │ 1       │ 1
+                                      │         │
+                 ┌────────────────────┘         └───────────────────┐
+                 │ M-D (1:N)                                        │ M-D (1:N)
+                 ▼                                                  ▼
+   ┌─────────────────────────┐                        ┌─────────────────────────┐
+   │     Ticket_Type__c      │                        │     Registration__c     │
+   │─────────────────────────│                        │─────────────────────────│
+   │ Quota__c                │◀──────(Lookup)─────────│ Booking_Group_Id__c     │
+   │ Price__c                │ 1                    N │ Booked_Price__c         │
+   │ Booked_Seats__c         │                        │ Registration_Status__c  │
+   │ Available_Seats__c (FX) │                        └───────┬─────────┬───────┘
+   └─────────────────────────┘                                │ 1       │ 1
+                                                               │         │
+                                      ┌────────────────────────┘         └───────────────────┐
+                                      │ M-D (1:N)                                            │ Lookup (1:N)
+                                      ▼                                                      ▼
+                        ┌─────────────────────────┐                            ┌─────────────────────────┐
+                        │        Ticket__c        │                            │       Payment__c        │
+                        │─────────────────────────│                            │─────────────────────────│
+                        │ Ticket_Status__c        │                            │ Amount__c               │
+                        │ Issue_Date_Time__c      │                            │ Payment_Status__c       │
+                        │ Registration__c (M-D)   │                            │ Payment_Method__c       │
+                        └─────────────────────────┘                            │ Transaction_Reference__c│
+                                                                               └─────────────────────────┘
+                                                  ▲
+                                                  │ Lookup
+                        ┌─────────────────────────┴───────────────┐
+                        │                   Feedback__c           │
+                        │─────────────────────────────────────────│
+                        │ Event__c (Lookup)                       │
+                        │ Attendee__c (Lookup)                    │
+                        │ Registration__c (Lookup)                │
+                        │ Overall_Rating__c (1-5)                 │
+                        └─────────────────────────────────────────┘
 ```
 
 ---
 
-## 3. Why each Master-Detail was chosen (cascade + rollup reasoning)
+## 3. Deep-Dive: Master-Detail vs. Lookup Decisions
 
-- **Ticket Type → Event**: needs Master-Detail so Event can roll up `Total Capacity` and
-  `Booked Seats` from its Ticket Types using native Roll-Up Summary fields. Roll-Up Summary
-  fields require Master-Detail.
-- **Registration → Event**: same reasoning — without Master-Detail, Event cannot natively
-  roll up registration-derived counts, and a Registration orphaned from its Event would be a
-  data-integrity hole.
-- **Ticket → Registration**: a Ticket has zero business meaning without a successful
-  Registration behind it. Master-Detail also lets deleting a Registration (e.g. an
-  admin-corrected erroneous booking) cascade-delete its Ticket cleanly.
+### 1. Why `Ticket_Type__c → Event__c` is Master-Detail
+1. **Roll-up Summary Requirement:** In Salesforce, **Roll-Up Summary fields are ONLY permitted across Master-Detail relationships**. The `Event__c` record maintains two mission-critical real-time roll-up fields:
+   - `Total_Capacity__c`: `SUM(Ticket_Type__c.Quota__c)`
+   - `Booked_Seats__c`: `SUM(Ticket_Type__c.Booked_Seats__c)`
+   Without Master-Detail, roll-ups could not exist declaratively and would require extensive trigger logic.
+2. **Lifecycle Dependency:** A ticket tier (e.g. VIP ₹5,000 for "Dreamforce 2026") cannot exist without its parent event. Deleting an event cleanly removes its ticket tiers.
 
-## 4. Why the Lookups were deliberately kept as Lookup (not Master-Detail)
+### 2. Why `Registration__c → Event__c` is Master-Detail
+1. **Event Lifecycle Governance:** Bookings are intrinsically bound to an event. If an event is cancelled or purged from the database, orphaned registrations must not remain.
+2. **Security & Sharing Inheritance:** The OWD for `Registration__c` is set to **Controlled by Parent**. Detail records automatically inherit the security settings of `Event__c` (Private).
 
-- **Event → Venue / Event → Organizer**: Venues and Users are shared master data that must
-  outlive any single Event and must never be affected by an Event's sharing/ownership rules.
-- **Registration → Attendee / Registration → Ticket Type**: both are shared reference-type
-  records used across many Registrations; Master-Detail would force them to inherit
-  Registration's OWD/sharing behavior, which is wrong for records that are naturally
-  independent.
-- **Payment → Registration**: intentionally Lookup so Finance retains its own record-level
-  control over Payment (per the security/OWD model) and so payment/audit history isn't at
-  risk of cascade-delete if a Registration record is later modified.
-- **Feedback → Event / Attendee / Registration**: Feedback is a downstream, optional,
-  time-delayed artifact (created up to 10 hours after event end) — it should never be
-  cascade-tied to the lifecycle of Event, Attendee, or Registration records.
-- **Attendee → User**: a User account's lifecycle (deactivation, deletion) shouldn't cascade
-  into historical Attendee/Registration/Ticket data.
-- **Speaker → Event**: kept as Lookup, not Master-Detail — a Speaker's contact/bio information
-  can reasonably outlive the specific Event it was originally tied to (e.g. if the Event is
-  later cancelled, the Speaker record itself is still legitimate reference data), and Speaker
-  doesn't need any Event-level roll-up the way Ticket Type does.
+### 3. Why `Ticket__c → Registration__c` is Master-Detail
+1. **Single Relationship Principle:** `Ticket__c` has **only one relationship field** in the entire schema: `Registration__c`. It deliberately does not duplicate lookups to Event, Attendee, or Ticket Type.
+2. **Cascade Integrity:** A ticket entry pass has no purpose without an approved registration. Deleting a registration automatically voids and cascades to delete the issued pass.
+
+### 4. Why `Payment__c → Registration__c` was Kept as Lookup (NOT Master-Detail)
+1. **Financial Audit Isolation:** Under enterprise accounting principles, financial payment transactions must **never cascade delete** if an event or registration record is corrected or deleted.
+2. **Independent OWD & Sharing:** Allows Finance team members to have dedicated object-level and field-level permissions on `Payment__c` without requiring broad modify-all permissions on registrations.
+
+### 5. Why `Speaker__c → Event__c` is a Direct Lookup (No Junction Object)
+1. **Schema Simplicity:** In earlier designs, a many-to-many junction (`Event_Speaker__c`) was proposed. However, in our architecture, keynotes and presenters are assigned directly to events via `Speaker__c.Event__c`.
+2. **Decoupled Lifecycle:** Speaker bio data can be entered into the CRM prior to final event scheduling and persists even if an event is cancelled.
 
 ---
 
-## Changelog
+## 4. Cardinality & Multiplicity Reference
 
-| Version | Change |
-|---|---|
-| This version | Removed Event Speaker junction (both Master-Detail rows). Added `Speaker.Event__c` (Lookup) as direct replacement. Added `Attendee.User__c` (Lookup) row, carried over from the data model revision. |
-| Prior version | Established Registration→Event as Master-Detail; Ticket carries only Registration as its relationship field. |
+```
+[1] Venue__c            ─── (0..N) Event__c
+[1] User (Organizer)    ─── (0..N) Event__c
+[1] User (Approver)     ─── (0..N) Event__c
+[1] Event__c            ─── (1..N) Ticket_Type__c  (Master-Detail)
+[1] Event__c            ─── (0..N) Registration__c (Master-Detail)
+[1] Attendee__c         ─── (0..N) Registration__c (Lookup)
+[1] Ticket_Type__c      ─── (0..N) Registration__c (Lookup)
+[1] Registration__c     ─── (0..1) Ticket__c       (Master-Detail)
+[1] Registration__c     ─── (0..N) Payment__c      (Lookup)
+[1] Event__c            ─── (0..N) Feedback__c     (Lookup)
+[1] Registration__c     ─── (0..1) Feedback__c     (Lookup - guarded by validation rule)
+[1] User (Portal User)  ─── (0..N) Attendee__c     (Lookup)
+[1] Event__c            ─── (0..N) Speaker__c      (Lookup)
+```
+
+---
+
+## 5. Viva / Oral Defense Questions for Relationships
+
+### Q1: "Why did you use Master-Detail for `Ticket_Type__c` and `Registration__c`, but Lookup for `Payment__c` and `Attendee__c`?"
+> **Answer:** *"Sir, Master-Detail on `Ticket_Type__c` and `Registration__c` to `Event__c` enables native Roll-Up Summary fields (`Total_Capacity__c` and `Booked_Seats__c`) on the Event record with zero Apex code. It also guarantees cascading cleanup if an event is deleted.  
+> In contrast, `Payment__c` uses a Lookup because financial records must be preserved for accounting audit trails even if a registration is modified or deleted. `Attendee__c` uses a Lookup because an attendee represents a persistent individual customer who can register for multiple events across the year."*
+
+### Q2: "Can you change a Lookup relationship to a Master-Detail relationship in an active Salesforce org?"
+> **Answer:** *"Yes, Sir, but only under two strict conditions:  
+> 1. All existing records in the child object must have a value in that lookup field (no null values).  
+> 2. The parent object cannot already have reached the limit of 2 Master-Detail relationships."*
+
+### Q3: "Why doesn't `Ticket__c` have lookups to `Event__c` and `Attendee__c`?"
+> **Answer:** *"Sir, following Salesforce normalized relational design and the 'Single Source of Truth' principle, `Ticket__c` points only to `Registration__c`. The event, venue, and attendee details are traversed relationship-wise (`Registration__r.Event__r.Name`, `Registration__r.Attendee__r.Email__c`). Adding duplicate lookups would risk data drift and unnecessary schema overhead."*

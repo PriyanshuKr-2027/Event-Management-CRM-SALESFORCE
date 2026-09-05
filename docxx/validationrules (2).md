@@ -1,231 +1,185 @@
-# Validation Rules
+# Validation Rules Reference Manual
 
-**Revision note (this version):** `No_Registration_On_Unpublished_Or_Closed_Event` (Registration
-§3) is now scoped to insert only (`ISNEW()` guard added). Without this, the rule also fired on
-the *second* save that `EventBookingController.confirmPayment` performs (Pending → Confirmed),
-which meant a Registration Team member or an unlucky timing window (event's registration
-window closing between booking and the attendee finishing the 10-second QR verification step)
-could leave a payment "confirmed" in the UI while the underlying Apex update silently failed.
-All other rules are unchanged from the prior version. See `flows.md` and `datamodel.md` (this
-same revision) for the related Flow/field changes.
-
-Grouped by object. Each rule lists the enforced business requirement (traced to prd.md /
-organizer.md / attendeeworkflow.md / owd.md) and pseudo-formula logic. Final Apex-vs-Validation-Rule
-split for the two capacity checks (marked ⚠️) is resolved in section "Resolved" below.
+> **Module:** Data Model & Schema Integrity  
+> **Source of Truth:** `objects/*/validationRules/*.validationRule-meta.xml` & `ROLE_1_DATA_MODEL_AND_WORKFLOW.md`  
+> **Total Active Declarative Validation Rules:** **20 Rules** across **7 Objects**  
+> **Apex Trigger Guards:** **2 Architectural Checks** (`TicketTypeTriggerHandler`, `RegistrationTriggerHandler`)  
+> **Controller Security & Idempotency Guards:** **2 Programmatic Checks** (`EventBookingController`)
 
 ---
 
-## 1. Event
+## 1. Executive Summary & Defense Strategy
 
-**VR: End_After_Start**
-- Requirement: `End Date/Time > Start Date/Time` (prd.md §7 Step 2)
-- Formula: `Start_Date_Time__c >= End_Date_Time__c` → Error
+Salesforce validation rules represent the **declarative database gatekeepers**. They execute during the Salesforce Save Order of Execution **before** data commits to the database, ensuring bad data cannot be introduced via the UI, Lightning Web Components, Screen Flows, Data Loader, or SOAP/REST APIs.
 
-**VR: Budget_Required_On_Submit**
-- Requirement: Organizer must supply a Proposed Budget before Submit
-- Formula: `ISBLANK(Proposed_Budget__c) && ISPICKVAL(Approval_Status__c, "Pending Approval")` → Error
-
-**VR: No_Publish_Before_Approved**
-- Requirement: Approved ≠ Published; Organizer can only Publish an Approved event (prd.md §8, §9)
-- Formula: `ISPICKVAL(Publication_Status__c, "Published") && NOT(ISPICKVAL(Approval_Status__c, "Approved"))` → Error
-
-**VR: No_Booking_On_Rejected_Or_Cancelled**
-- Requirement: Rejected/Cancelled events are not bookable or publishable (prd.md §8)
-- Formula: `(ISPICKVAL(Approval_Status__c,"Rejected") || ISPICKVAL(Approval_Status__c,"Cancelled")) && ISPICKVAL(Publication_Status__c,"Published")` → Error
-
-**VR: Rejection_Reason_Required**
-- Requirement: Manager rejection comments must be stored (prd.md §8)
-- Formula: `ISPICKVAL(Approval_Status__c,"Rejected") && ISBLANK(Rejection_Reason__c)` → Error
-
-**VR: No_Self_Approval**
-- Requirement: Organizer cannot approve their own event; Manager cannot approve their own request (prd.md §3.2/§3.3, owd.md §5)
-- Formula: `ISPICKVAL(Approval_Status__c,"Approved") && Approved_By__c = Organizer__c`
-- Note: primarily enforced through the Approval Process's approver routing (submitter ≠
-  approver), this validation rule is a defense-in-depth backstop if Approved_By is captured
-  as a field.
+For complex cross-record aggregations (e.g., total ticket quotas exceeding venue capacity) or high-concurrency race conditions (e.g., two users booking the last remaining VIP seat simultaneously), declarative validation rules are architecturally insufficient. In our implementation:
+- **Single-record and direct parent-relationship constraints** are enforced using **Declarative Validation Rules**.
+- **Multi-record aggregations and concurrency-critical capacity locks** are enforced using **Apex Triggers with `FOR UPDATE` row locking**.
+- **User context and payment idempotency** are enforced at the **Apex Controller level**.
 
 ---
 
-## 2. Ticket Type
+## 2. Complete Declarative Validation Rules Matrix (20 Rules)
 
-**VR: No_Price_Change_After_Registration_Open**
-- Requirement: Price locked once Registration Opens (prd.md §5.2 rule 6, §10)
-- Formula: `ISCHANGED(Price__c) && ISPICKVAL(Event__r.Registration_Status__c, "Open")` → Error
-
-**VR: No_Quota_Change_After_Registration_Open**
-- Requirement: Quota locked once Registration Opens (prd.md §5.2 rule 7, §10)
-- Formula: `ISCHANGED(Quota__c) && ISPICKVAL(Event__r.Registration_Status__c, "Open")` → Error
-
-**VR: Quota_Not_Below_Booked_Seats**
-- Requirement: Quota cannot be reduced below already-booked seats (prd.md §5.2 rule 4, §10)
-- Formula: `Quota__c < Booked_Seats__c` → Error
-
-**VR: No_Manual_Availability_Edit**
-- Requirement: Booked Seats / Available Seats are system-controlled; Organizer cannot manually
-  edit availability (prd.md §5.2 rules 8–9)
-- Formula: `ISCHANGED(Booked_Seats__c) && !$Permission.System_Automation_Override` → Error
-  (Booked Seats should really be a Roll-Up Summary, which is inherently non-editable by users —
-  this rule is a backstop in case it's implemented as a plain Number field instead.)
-
----
-
-## 3. Registration
-
-**VR: Ticket_Type_Must_Belong_To_Event**
-- Requirement: Selected Ticket Type must belong to the selected Event (prd.md §5.3)
-- Formula: `Ticket_Type__r.Event__c <> Event__c` → Error
-
-**VR: No_Registration_On_Unpublished_Or_Closed_Event** ⟵ *changed this version*
-- Requirement: Attendees may only register for events open for registration (prd.md §6)
-- Formula (updated):
-  ```
-  ISNEW() &&
-  NOT(ISPICKVAL(Event__r.Registration_Status__c, "Open"))
-  ```
-- **Why the `ISNEW()` guard was added:** the original formula ran on every save, including the
-  second save `confirmPayment` performs to flip `Registration_Status__c` from Pending to
-  Confirmed. If an event's registration window closed in the gap between the attendee
-  finishing checkout and finishing the 10-second QR verification screen, that second save
-  would be blocked by this rule — leaving the attendee looking at "Payment Confirmed" in the
-  LWC while the underlying `update reg;` in Apex actually failed. Scoping to `ISNEW()` means
-  this rule only ever gates the *original* booking, which is the only point at which it
-  should apply; once a Registration exists, whether the event's window later closes is not a
-  reason to block that Registration's own downstream status transitions.
-- Note: this remains the last-line UI-facing check on **insert** only; the authoritative
-  concurrency-safe capacity check is still the Apex Trigger (prd.md §14), not this rule.
-
-**VR: Booked_Price_Required**
-- Requirement: Registration stores a price snapshot at booking time (prd.md §5.3)
-- Formula: `ISBLANK(Booked_Price__c)` on insert → Error
+| # | Object API Name | Rule API Name | Error Condition Formula | Error Message | Error Location |
+|---|---|---|---|---|---|
+| 1 | `Event__c` | **`End_After_Start`** | `Start_Date_Time__c >= End_Date_Time__c` | *End Date/Time must be strictly after Start Date/Time.* | `End_Date_Time__c` |
+| 2 | `Event__c` | **`Budget_Required_On_Submit`** | `ISBLANK(Proposed_Budget__c) && ISPICKVAL(Approval_Status__c, "Pending Approval")` | *Proposed Budget is required before submitting an event for approval.* | `Proposed_Budget__c` |
+| 3 | `Event__c` | **`No_Publish_Before_Approved`** | `ISPICKVAL(Publication_Status__c, "Published") && NOT(ISPICKVAL(Approval_Status__c, "Approved"))` | *An event cannot be published until its approval status is Approved.* | `Publication_Status__c` |
+| 4 | `Event__c` | **`No_Booking_On_Rejected_Or_Cancelled`** | `(ISPICKVAL(Approval_Status__c, "Rejected") \|\| ISPICKVAL(Approval_Status__c, "Cancelled")) && ISPICKVAL(Publication_Status__c, "Published")` | *Rejected or Cancelled events cannot be published.* | Top of Page |
+| 5 | `Event__c` | **`Rejection_Reason_Required`** | `ISPICKVAL(Approval_Status__c, "Rejected") && ISBLANK(Rejection_Reason__c)` | *Rejection Reason is mandatory when an event is rejected.* | `Rejection_Reason__c` |
+| 6 | `Event__c` | **`No_Self_Approval`** | `ISPICKVAL(Approval_Status__c, "Approved") && NOT(ISBLANK(Approved_By__c)) && Approved_By__c = Organizer__c` | *An organizer cannot approve their own event.* | Top of Page |
+| 7 | `Venue__c` | **`Capacity_Positive`** | `Venue_Capacity__c <= 0` | *Venue Capacity must be a positive number greater than zero.* | `Venue_Capacity__c` |
+| 8 | `Ticket_Type__c` | **`No_Price_Change_After_Registration_Open`** | `ISCHANGED(Price__c) && ISPICKVAL(Event__r.Registration_Status__c, "Open")` | *Ticket price cannot be modified after registration has opened.* | `Price__c` |
+| 9 | `Ticket_Type__c` | **`No_Quota_Change_After_Registration_Open`** | `ISCHANGED(Quota__c) && ISPICKVAL(Event__r.Registration_Status__c, "Open")` | *Ticket quota cannot be modified after registration has opened.* | `Quota__c` |
+| 10 | `Ticket_Type__c` | **`Quota_Not_Below_Booked_Seats`** | `Quota__c < Booked_Seats__c` | *Ticket quota cannot be reduced below the number of already booked seats.* | `Quota__c` |
+| 11 | `Registration__c` | **`Ticket_Type_Must_Belong_To_Event`** | `Ticket_Type__r.Event__c <> Event__c` | *The selected ticket type does not belong to the selected event.* | `Ticket_Type__c` |
+| 12 | `Registration__c` | **`No_Reg_On_Unpublished_Or_Closed_Event`** | `ISNEW() && NOT(ISPICKVAL(Event__r.Registration_Status__c, "Open"))` | *Registrations cannot be created for events that are not currently open for registration.* | Top of Page |
+| 13 | `Registration__c` | **`Booked_Price_Required`** | `ISNEW() && ISBLANK(Booked_Price__c)` | *Booked Price is required when creating a registration.* | `Booked_Price__c` |
+| 14 | `Payment__c` | **`Amount_Matches_Registration_Booked_Price`** | `Amount__c <> Registration__r.Booked_Price__c` | *Payment amount must match the booked price of the registration.* | `Amount__c` |
+| 15 | `Payment__c` | **`Txn_Ref_Required_When_Successful`** | `ISPICKVAL(Payment_Status__c, "Successful") && ISBLANK(Transaction_Reference__c)` | *Transaction Reference is required when Payment Status is Successful.* | `Transaction_Reference__c` |
+| 16 | `Attendee__c` | **`Valid_Email_Format`** | `AND(NOT(ISBLANK(Email__c)), NOT(REGEX(Email__c, "^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$")))` | *Please enter a valid email address.* | `Email__c` |
+| 17 | `Attendee__c` | **`Valid_Phone_Number`** | `AND(NOT(ISBLANK(Phone__c)), NOT(REGEX(Phone__c, "^[0-9]{10}$")))` | *Phone number must contain exactly 10 digits.* | `Phone__c` |
+| 18 | `Feedback__c` | **`Rating_Range`** | `Overall_Rating__c < 1 \|\| Overall_Rating__c > 5` | *Overall Rating must be an integer between 1 and 5.* | `Overall_Rating__c` |
+| 19 | `Feedback__c` | **`No_Feedback_Before_Event_Ends`** | `Registration__r.Event__r.End_Date_Time__c > NOW()` | *Feedback cannot be submitted before the event has ended.* | Top of Page |
+| 20 | `Feedback__c` | **`One_Feedback_Per_Registration`** | `Registration__r.Feedback_Submitted__c = TRUE` | *Feedback has already been submitted for this registration.* | Top of Page |
 
 ---
 
-## 4. Payment
+## 3. Deep-Dive by Functional Object
 
-**VR: Transaction_Reference_Required_When_Successful**
-- Requirement: A Successful payment should be traceable/reconcilable (prd.md §5.5, owd.md §7 Finance responsibilities)
-- Formula: `ISPICKVAL(Payment_Status__c, "Successful") && ISBLANK(Transaction_Reference__c)` → Error
-- Note: satisfied automatically by `confirmPayment`, which always populates
-  `Transaction_Reference__c` from the QR session reference before insert — but the rule stays
-  in place as a backstop against any other insert path (e.g. Finance manually logging an
-  offline payment) that forgets to supply it.
+### 1. `Event__c` Validation Rules (6 Rules)
 
-**VR: Amount_Matches_Registration_Booked_Price**
-- Requirement: Payment amount should reconcile with the Registration's locked-in price
-- Formula: `Amount__c <> Registration__r.Booked_Price__c` → Error (or Warning, if partial
-  payments/refund adjustments are expected — decide once §7 payment sequencing is finalized)
-- Note: `confirmPayment` sets `Amount__c` directly from `Registration.Booked_Price__c`
-  server-side, so this rule should never actually fire for QR-flow payments — it exists to
-  catch any other insert path (manual Finance entry, future payment gateway integration) that
-  might supply a mismatched amount.
+#### A. `End_After_Start`
+- **Formula:** `Start_Date_Time__c >= End_Date_Time__c`
+- **Business Rationale:** An event cannot end before it begins or have zero duration.
+- **Save Context:** Evaluated on Create and Edit whenever start or end dates are modified.
 
----
+#### B. `Budget_Required_On_Submit`
+- **Formula:** `ISBLANK(Proposed_Budget__c) && ISPICKVAL(Approval_Status__c, "Pending Approval")`
+- **Business Rationale:** The dynamic approval engine routes approval based on `Proposed_Budget__c`. An organizer cannot submit an event for approval without specifying the budget.
 
-## 5. Feedback
+#### C. `No_Publish_Before_Approved`
+- **Formula:** `ISPICKVAL(Publication_Status__c, "Published") && NOT(ISPICKVAL(Approval_Status__c, "Approved"))`
+- **Business Rationale:** Enforces the governance separation between **Approval** and **Publication**. An organizer cannot publish an unapproved event to attendees.
 
-**VR: One_Feedback_Per_Registration**
-- Requirement: One Registration → at most one Feedback submission (prd.md §4.2, §5.10)
-- Not expressible as a simple field-level Validation Rule (requires checking for existing
-  records). Implement via:
-  - A Duplicate Rule on Registration__c, **or**
-  - A `Feedback_Submitted__c` checkbox roll-up/flag on Registration, checked by a Validation
-    Rule on Feedback: `Registration__r.Feedback_Submitted__c = TRUE` → Error, **or**
-  - Apex Trigger validation (most reliable for concurrent submissions)
+#### D. `No_Booking_On_Rejected_Or_Cancelled`
+- **Formula:** `(ISPICKVAL(Approval_Status__c, "Rejected") || ISPICKVAL(Approval_Status__c, "Cancelled")) && ISPICKVAL(Publication_Status__c, "Published")`
+- **Business Rationale:** Prevents invalid or cancelled events from appearing in published state on the portal.
 
-**VR: Rating_Range**
-- Requirement: Ratings are bounded (1–5)
-- Formula (per rating field): `Overall_Rating__c < 1 || Overall_Rating__c > 5` → Error
+#### E. `Rejection_Reason_Required`
+- **Formula:** `ISPICKVAL(Approval_Status__c, "Rejected") && ISBLANK(Rejection_Reason__c)`
+- **Business Rationale:** When an Event Manager rejects a proposed event budget, feedback must be recorded to explain the business reason to the organizer.
 
-**VR: No_Feedback_Before_Event_Ends**
-- Requirement: Feedback flow only fires 10 hours after Event End (prd.md §12)
-- Formula: `Registration__r.Event__r.End_Date_Time__c > NOW()` → Error
+#### F. `No_Self_Approval`
+- **Formula:** `ISPICKVAL(Approval_Status__c, "Approved") && NOT(ISBLANK(Approved_By__c)) && Approved_By__c = Organizer__c`
+- **Business Rationale:** Defense-in-depth security guard. Prevents an organizer from approving their own event.
 
 ---
 
-## 6. Venue
+### 2. `Venue__c` Validation Rules (1 Rule)
 
-**VR: Capacity_Positive**
-- Formula: `Venue_Capacity__c <= 0` → Error
-
----
-
-## 7. Speaker / Event Speaker
-
-**VR: No_Duplicate_Speaker_On_Event**
-- Requirement: implicit data-quality rule — same Speaker shouldn't be linked twice to the same Event
-- Not expressible as a plain Validation Rule (cross-record uniqueness). Implement via a
-  Duplicate Rule/Matching Rule on Event Speaker, keyed on (Event, Speaker), or an Apex Trigger
-  check.
+#### A. `Capacity_Positive`
+- **Formula:** `Venue_Capacity__c <= 0`
+- **Business Rationale:** Ensures that venues have a valid physical seat limit. Prevents zero or negative numbers from breaking downstream capacity formulas.
 
 ---
 
-## 8. Apex-level checks (not Validation Rules, listed here for completeness)
+### 3. `Ticket_Type__c` Validation Rules (3 Rules)
 
-These live in `EventBookingController.confirmPayment` rather than as declarative Validation
-Rules, because each requires either a cross-record existence check or a security context
-check that Validation Rules cannot perform:
+#### A. `No_Price_Change_After_Registration_Open`
+- **Formula:** `ISCHANGED(Price__c) && ISPICKVAL(Event__r.Registration_Status__c, "Open")`
+- **Business Rationale:** Consumer fairness guard. Ticket prices cannot be changed dynamically once registration is active to prevent bait-and-switch pricing.
 
-**Ownership check**
-- Requirement: a portal/community user must only be able to confirm payment for their own
-  Registration (see `datamodel.md §7`, new `Attendee.User__c` field)
-- Logic: `reg.Attendee__r.User__c != UserInfo.getUserId()` → `AuraHandledException`
-- Not a Validation Rule because it needs `UserInfo.getUserId()`, which Validation Rule
-  formulas cannot evaluate against an arbitrary related record's lookup field in this way
-  reliably across guest/community contexts.
+#### B. `No_Quota_Change_After_Registration_Open`
+- **Formula:** `ISCHANGED(Quota__c) && ISPICKVAL(Event__r.Registration_Status__c, "Open")`
+- **Business Rationale:** Prevents organizers from altering tier allocations mid-campaign, which would distort capacity formulas and analytics.
 
-**Duplicate-payment guard**
-- Requirement: a double-click or retried request must not create two `Payment__c` records for
-  one Registration
-- Logic: query `Payment__c WHERE Registration__c = :registrationId` before insert; short-circuit
-  if one already exists
-- Not a Validation Rule because it requires a SOQL existence check against sibling records,
-  which — per the same reasoning as the capacity checks below — is unsafe to express as a
-  single-record formula.
+#### C. `Quota_Not_Below_Booked_Seats`
+- **Formula:** `Quota__c < Booked_Seats__c`
+- **Business Rationale:** An organizer cannot decrease a tier quota below the number of tickets already purchased by attendees, preventing negative available seat calculations.
 
 ---
 
-## Resolved — items previously flagged ⚠️
+### 4. `Registration__c` Validation Rules (3 Rules)
 
-### 1. Quota vs Venue Capacity → **Apex, not a Validation Rule**
+#### A. `Ticket_Type_Must_Belong_To_Event`
+- **Formula:** `Ticket_Type__r.Event__c <> Event__c`
+- **Business Rationale:** Relational integrity guard. Prevents an attendee from booking a Ticket Type associated with Event A against an event record for Event B.
 
-A Validation Rule on Ticket Type can only see the record being saved plus its direct lookups
-— it cannot natively SUM the Quota of *sibling* Ticket Types under the same Event without a
-Roll-Up Summary field on Event. Even with that Roll-Up in place, the check would be unsafe:
-Roll-Up Summary fields recalculate **after** the triggering DML commits, so the Validation
-Rule would evaluate against the *stale* pre-save sum and let an overshoot through on the
-save that actually causes it.
+#### B. `No_Reg_On_Unpublished_Or_Closed_Event`
+- **Formula:** `ISNEW() && NOT(ISPICKVAL(Event__r.Registration_Status__c, "Open"))`
+- **Critical Architectural Design:** The `ISNEW()` guard ensures this rule only executes during the **initial ticket creation**. If an event's registration closes while an attendee is finishing the payment countdown, the subsequent update (changing status from `Pending` to `Confirmed`) will not be blocked.
 
-**Decision:** this check moves entirely to Apex, on Ticket Type before insert/update. See
-`apex-design.md` §1 (`TicketTypeTriggerHandler`) for the full spec. The `Quota_Not_Exceed_Venue_Capacity`
-row has been removed from the Event/Ticket Type Validation Rule list above for this reason —
-`Quota_Not_Below_Booked_Seats` and the price/quota-lock rules remain as Validation Rules
-since those are genuinely single-record, deterministic checks.
-
-### 2. Overbooking / concurrent registration protection → **confirmed Apex-only, no Validation Rule**
-
-Confirmed as originally scoped in prd.md §14. A Validation Rule evaluates against record
-state at the start of a transaction with no locking mechanism — two concurrent Registration
-inserts for the last seat could both pass the same check and both succeed. Only Apex, using
-row-level locking (`FOR UPDATE`), can serialize concurrent booking attempts safely. Full spec
-in `apex-design.md` §2 (`RegistrationTriggerHandler`).
-
-This also resolves prd.md's open item #8 (*"exact authoritative mechanism for updating Booked
-Seats"*): **Apex owns the write to `Booked_Seats__c`**, not the Record-Triggered Flow. The
-Record-Triggered Flow's scope is downstream automation only — confirmation Task, notification
-— per the "one source of truth for inventory" design principle (prd.md §26).
-
-### 3. Payment sequencing (prd.md §23 open item #2) → **resolved**
-
-Payment is created **before** the Registration's status flips to Confirmed, both within the
-single `confirmPayment` transaction, itself invoked only after the attendee completes the
-10-second QR verification step in the `paymentQrVerification` LWC. See `flows.md` for the
-full sequence diagram.
+#### C. `Booked_Price_Required`
+- **Formula:** `ISNEW() && ISBLANK(Booked_Price__c)`
+- **Business Rationale:** Mandates that a historical price snapshot is captured when the registration is inserted, insulating financial reports from future tier price changes.
 
 ---
 
-## Changelog
+### 5. `Payment__c` Validation Rules (2 Rules)
 
-| Version | Change |
-|---|---|
-| This version | Added `ISNEW()` guard to `No_Registration_On_Unpublished_Or_Closed_Event`. Added §8 documenting the two Apex-level checks (ownership, duplicate-payment) that back the QR payment flow. Added resolution note for payment sequencing. |
-| Prior version | Resolved Quota-vs-Capacity and overbooking checks to Apex-only. |
+#### A. `Amount_Matches_Registration_Booked_Price`
+- **Formula:** `Amount__c <> Registration__r.Booked_Price__c`
+- **Business Rationale:** Prevents financial reconciliation errors and underpayment by guaranteeing that the recorded payment matches the registration's booked price snapshot.
+
+#### B. `Txn_Ref_Required_When_Successful`
+- **Formula:** `ISPICKVAL(Payment_Status__c, "Successful") && ISBLANK(Transaction_Reference__c)`
+- **Business Rationale:** Ensures all successful transactions have an auditable gateway or UPI reference ID (e.g., `UPI-1725538000-9842`).
+
+---
+
+### 6. `Attendee__c` Validation Rules (2 Rules)
+
+#### A. `Valid_Email_Format`
+- **Formula:** `AND(NOT(ISBLANK(Email__c)), NOT(REGEX(Email__c, "^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$")))`
+- **Business Rationale:** Enforces RFC 5322 compliant email formatting for QR ticket delivery and email alerts.
+
+#### B. `Valid_Phone_Number`
+- **Formula:** `AND(NOT(ISBLANK(Phone__c)), NOT(REGEX(Phone__c, "^[0-9]{10}$")))`
+- **Business Rationale:** Standardizes mobile numbers to exact 10 digits for SMS notifications and UPI identity mapping.
+
+---
+
+### 7. `Feedback__c` Validation Rules (3 Rules)
+
+#### A. `Rating_Range`
+- **Formula:** `Overall_Rating__c < 1 || Overall_Rating__c > 5`
+- **Business Rationale:** Standardizes survey scoring on a clean 1 to 5 star scale for reporting and dashboard gauges.
+
+#### B. `No_Feedback_Before_Event_Ends`
+- **Formula:** `Registration__r.Event__r.End_Date_Time__c > NOW()`
+- **Business Rationale:** Prevents attendees from submitting reviews before an event has actually concluded.
+
+#### C. `One_Feedback_Per_Registration`
+- **Formula:** `Registration__r.Feedback_Submitted__c = TRUE`
+- **Business Rationale:** Prevents duplicate feedback spam. Works in tandem with the `Feedback_Submitted__c` checkbox on `Registration__c`, which is set to `TRUE` via trigger/flow upon first review submission.
+
+---
+
+## 4. Architectural Separation: Why Certain Rules Are in Apex
+
+When questioned during Viva: *"Why aren't Venue Capacity limits or Concurrent Seat Bookings written as Validation Rules?"*
+
+### 1. Total Quota vs Venue Capacity (`TicketTypeTriggerHandler.cls`)
+- **Limitation of Validation Rules:** A validation rule on `Ticket_Type__c` evaluates only single records and their direct parent fields. It **cannot aggregate sibling records** without a roll-up summary.
+- **Race Condition in Validation Rules:** In Salesforce, roll-up summary fields calculate *after* validation rules run. Therefore, a validation rule would evaluate against stale pre-save data and allow capacity violations to slip through.
+- **Apex Implementation:** `TicketTypeTriggerHandler.validateQuotaAgainstVenueCapacity()` queries all sibling ticket types, aggregates the proposed total, and adds a field error if `(Existing Sibling Quotas + New Quota) > Venue.Venue_Capacity__c`.
+
+### 2. High-Concurrency Overbooking Guard (`RegistrationTriggerHandler.cls`)
+- **Limitation of Validation Rules:** Validation rules do not lock database rows. If two users click "Book Now" for the final available ticket simultaneously, both validation rules evaluate `Available_Seats__c > 0` as true, causing an overbooking violation.
+- **Apex Implementation:** `RegistrationTriggerHandler.validateQuotaAndCapacity()` locks the `Ticket_Type__c` record using `[SELECT ... FOR UPDATE]` and serializes transactions to guarantee 100% seat availability integrity.
+
+### 3. Ownership & Duplicate Payment Guards (`EventBookingController.cls`)
+- **Ownership Verification:** Verifies `reg.Attendee__r.User__c == UserInfo.getUserId()`. Declarative validation rules cannot dynamically check the calling portal user context across related parent records.
+- **Payment Idempotency:** Queries `Payment__c WHERE Registration__c = :registrationId` before inserting, ensuring multi-clicks on the payment modal never generate duplicate payment records.
+
+---
+
+## 5. Viva / Technical Defense Questions
+
+### Q1: "Why did you use `ISNEW()` in `No_Reg_On_Unpublished_Or_Closed_Event`?"
+> **Answer:** *"Sir, without `ISNEW()`, the validation rule executes on every subsequent update to the Registration record. In our workflow, an attendee first creates a registration in `Pending` status, and after completing the payment countdown, our Apex method updates it to `Confirmed`. If the event registration closed during that 10-second payment window, an un-scoped validation rule would block the payment confirmation update. Adding `ISNEW()` ensures the rule only restricts new bookings."*
+
+### Q2: "What happens if an admin enters an invalid phone number through Data Loader?"
+> **Answer:** *"Because these are native Salesforce validation rules defined on the object schema, they execute regardless of entry point—whether through our LWC frontend, standard Salesforce UI, Flow, or API Data Loader. Any invalid phone number that does not match `^[0-9]{10}$` will be rejected by the database engine."*
