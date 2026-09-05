@@ -90,16 +90,13 @@
 
                 <!-- Animated Countdown Circle -->
                 <div class="countdown-wrapper slds-m-vertical_large">
+                    <svg class="countdown-svg" viewBox="0 0 160 160">
+                        <circle cx="80" cy="80" r="68" class="countdown-track"></circle>
+                        <circle cx="80" cy="80" r="68" class="countdown-bar" style={countdownStrokeStyle}></circle>
+                    </svg>
                     <div class="countdown-circle">
                         <span class="countdown-number">{countdownSeconds}</span>
                         <span class="countdown-unit">seconds</span>
-                    </div>
-                    <div class="countdown-progress-ring">
-                        <lightning-progress-ring 
-                            value={countdownProgressPercent} 
-                            size="large" 
-                            variant="active-step">
-                        </lightning-progress-ring>
                     </div>
                 </div>
 

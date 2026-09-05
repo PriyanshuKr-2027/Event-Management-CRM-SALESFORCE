@@ -13,7 +13,7 @@
                     }
                 }
                 body {
-                    font-family: Arial, Helvetica, sans-serif;
+                    font-family: 'Arial Unicode MS', Arial, Helvetica, sans-serif;
                     color: #0f172a;
                     margin: 0;
                     padding: 0;

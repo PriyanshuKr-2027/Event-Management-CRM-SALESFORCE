@@ -134,11 +134,19 @@ public with sharing class EventBookingController {
 
         Id currentUserId = UserInfo.getUserId();
         List<Attendee__c> attendeesToInsert = new List<Attendee__c>();
+        List<Attendee__c> attendeesToUpdate = new List<Attendee__c>();
         Map<Integer, Attendee__c> attendeeMapByIndex = new Map<Integer, Attendee__c>();
 
         for (Integer i = 0; i < attendees.size(); i++) {
             AttendeeInput inp = attendees[i];
-            String emailKey = String.isNotBlank(inp.email) ? inp.email.trim().toLowerCase() : '';
+            if (inp == null || String.isBlank(inp.name)) {
+                throw new AuraHandledException('Attendee full name is required for Ticket #' + (i + 1));
+            }
+            if (String.isBlank(inp.email)) {
+                throw new AuraHandledException('Attendee email address is required for Ticket #' + (i + 1));
+            }
+
+            String emailKey = inp.email.trim().toLowerCase();
             
             // Format phone to 10 digits to satisfy Valid_Phone_Number rule
             String sanitizedPhone = '';
@@ -154,11 +162,24 @@ public with sharing class EventBookingController {
             }
 
             if (existingAttendeesByEmail.containsKey(emailKey)) {
-                attendeeMapByIndex.put(i, existingAttendeesByEmail.get(emailKey));
+                Attendee__c existingAtt = existingAttendeesByEmail.get(emailKey);
+                Boolean needsUpdate = false;
+                if (existingAtt.Name != inp.name.trim()) {
+                    existingAtt.Name = inp.name.trim();
+                    needsUpdate = true;
+                }
+                if (String.isNotBlank(sanitizedPhone) && existingAtt.Phone__c != sanitizedPhone) {
+                    existingAtt.Phone__c = sanitizedPhone;
+                    needsUpdate = true;
+                }
+                if (needsUpdate) {
+                    attendeesToUpdate.add(existingAtt);
+                }
+                attendeeMapByIndex.put(i, existingAtt);
             } else {
                 Attendee__c newAtt = new Attendee__c(
-                    Name = String.isNotBlank(inp.name) ? inp.name.trim() : 'Attendee ' + (i + 1),
-                    Email__c = String.isNotBlank(inp.email) ? inp.email.trim() : 'attendee' + i + '@example.com',
+                    Name = inp.name.trim(),
+                    Email__c = inp.email.trim(),
                     Phone__c = sanitizedPhone,
                     Attendee_Status__c = 'Active'
                 );
@@ -172,6 +193,9 @@ public with sharing class EventBookingController {
 
         if (!attendeesToInsert.isEmpty()) {
             insert attendeesToInsert;
+        }
+        if (!attendeesToUpdate.isEmpty()) {
+            update attendeesToUpdate;
         }
 
         // Generate unified booking group reference
@@ -327,18 +351,18 @@ public with sharing class EventBookingController {
     }
 
     public class AttendeeInput {
-        @AuraEnabled public String name;
-        @AuraEnabled public String email;
-        @AuraEnabled public String phone;
+        @AuraEnabled public String name { get; set; }
+        @AuraEnabled public String email { get; set; }
+        @AuraEnabled public String phone { get; set; }
     }
 
     public class BookingResult {
-        @AuraEnabled public String bookingGroupId;
-        @AuraEnabled public String primaryRegistrationId;
-        @AuraEnabled public Integer ticketCount;
-        @AuraEnabled public Decimal pricePerTicket;
-        @AuraEnabled public Decimal totalAmount;
-        @AuraEnabled public List<String> registrationIds;
+        @AuraEnabled public String bookingGroupId { get; set; }
+        @AuraEnabled public String primaryRegistrationId { get; set; }
+        @AuraEnabled public Integer ticketCount { get; set; }
+        @AuraEnabled public Decimal pricePerTicket { get; set; }
+        @AuraEnabled public Decimal totalAmount { get; set; }
+        @AuraEnabled public List<String> registrationIds { get; set; }
     }
 
     public class TicketDTO {

@@ -54,6 +54,12 @@ export default class PaymentQrVerification extends LightningElement {
         return Math.round(((10 - this.countdownSeconds) / 10) * 100);
     }
 
+    get countdownStrokeStyle() {
+        const circumference = 427.26; // 2 * Math.PI * 68
+        const offset = circumference - (this.countdownProgressPercent / 100) * circumference;
+        return `stroke-dashoffset: ${offset};`;
+    }
+
     /**
      * @description Generates a unique, non-reusable transaction session reference.
      */

@@ -325,8 +325,9 @@ export default class AttendeeEventBooking extends LightningElement {
     }
 
     handleAttendeeFieldChange(event) {
-        const index = parseInt(event.target.dataset.index, 10);
-        const field = event.target.dataset.field;
+        const rawIndex = event.currentTarget.dataset.index ?? event.target.dataset.index;
+        const index = parseInt(rawIndex, 10);
+        const field = event.currentTarget.dataset.field ?? event.target.dataset.field;
         const val = event.target.value;
 
         const updated = [...this.attendeeList];
@@ -345,7 +346,11 @@ export default class AttendeeEventBooking extends LightningElement {
             return;
         }
 
-        // Validate form inputs
+        // Directly read current values from the rendered lightning-inputs in the DOM
+        const nameInputs = [...this.template.querySelectorAll('lightning-input[data-field="name"]')];
+        const emailInputs = [...this.template.querySelectorAll('lightning-input[data-field="email"]')];
+        const phoneInputs = [...this.template.querySelectorAll('lightning-input[data-field="phone"]')];
+
         const allInputs = [...this.template.querySelectorAll('.attendee-card lightning-input')];
         const allValid = allInputs.reduce((validSoFar, inputCmp) => {
             inputCmp.reportValidity();
@@ -359,14 +364,19 @@ export default class AttendeeEventBooking extends LightningElement {
 
         // Strict 10-digit validation to adhere to Salesforce Valid_Phone_Number validation rules
         const phoneRegex = /^[0-9]{10}$/;
-        for (let i = 0; i < this.attendeeList.length; i++) {
-            const att = this.attendeeList[i];
-            const cleanPhone = (att.phone || '').replace(/[^0-9]/g, '');
-            if (!att.name || !att.name.trim()) {
+        const attendeesPayload = [];
+
+        for (let i = 0; i < this.ticketQuantity; i++) {
+            const nameVal = (nameInputs[i]?.value ?? this.attendeeList[i]?.name ?? '').trim();
+            const emailVal = (emailInputs[i]?.value ?? this.attendeeList[i]?.email ?? '').trim();
+            const rawPhone = (phoneInputs[i]?.value ?? this.attendeeList[i]?.phone ?? '');
+            const cleanPhone = rawPhone.replace(/[^0-9]/g, '');
+
+            if (!nameVal) {
                 this.showToast('Validation Error', `Please provide the full name for Ticket #${i + 1}.`, 'error');
                 return;
             }
-            if (!att.email || !att.email.trim()) {
+            if (!emailVal) {
                 this.showToast('Validation Error', `Please provide a valid email for Ticket #${i + 1}.`, 'error');
                 return;
             }
@@ -374,14 +384,24 @@ export default class AttendeeEventBooking extends LightningElement {
                 this.showToast('Invalid Phone Number', `Ticket #${i + 1} phone number must be exactly 10 digits (e.g., 9876543210).`, 'error');
                 return;
             }
+
+            attendeesPayload.push({
+                name: nameVal,
+                email: emailVal,
+                phone: cleanPhone
+            });
         }
 
-        this.isLoading = true;
-        const attendeesPayload = this.attendeeList.map(a => ({
-            name: a.name.trim(),
-            email: a.email.trim(),
-            phone: a.phone.replace(/[^0-9]/g, '')
+        // Sync back to attendeeList for UI consistency
+        this.attendeeList = attendeesPayload.map((a, idx) => ({
+            index: idx,
+            label: idx === 0 ? 'Ticket #1 (Primary Booker)' : `Ticket #${idx + 1}`,
+            name: a.name,
+            email: a.email,
+            phone: a.phone
         }));
+
+        this.isLoading = true;
 
         bookMultipleTickets({
             eventId: this.selectedEvent.Id,
