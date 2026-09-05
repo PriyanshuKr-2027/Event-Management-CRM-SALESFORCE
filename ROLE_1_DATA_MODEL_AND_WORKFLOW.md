@@ -59,6 +59,7 @@ You are the **Data Architect & Lead Workflow Engineer**. Your responsibility dur
   - `Booked_Seats__c` (Roll-up Summary: `SUM(Ticket_Type__c.Booked_Seats__c)`): Total registered attendees.
   - `Available_Seats__c` (Formula: `Total_Capacity__c - Booked_Seats__c`): Real-time seats left.
 - **Lifecycle Picklists:**
+  - `Category__c`: `Conference`, `Workshop`, `Training`, `Hackathon`, `Concert`, `Executive Summit`, `Webinar`, `Meetup`, `Other`.
   - `Approval_Status__c`: `Draft`, `Pending Approval`, `Approved`, `Rejected`.
   - `Publication_Status__c`: `Unpublished`, `Published`.
   - `Registration_Status__c`: `Not Open`, `Open`, `Closed`, `Sold Out`.

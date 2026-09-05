@@ -88,16 +88,35 @@ Our project embraces a **Declarative-First ("Clicks Before Code")** philosophy. 
 
 ---
 
-## 3. Custom Metadata Type (`Approval_Settings__mdt`)
+## 3. Dynamic Custom Metadata Approval Matrix (`Approval_Matrix__mdt`)
 
-**Metadata File:** [`customMetadata/Approval_Settings.Default_Threshold.md-meta.xml`](file:///c:/Users/10pri/Downloads/evmos%20saleforce/customMetadata/Approval_Settings.Default_Threshold.md-meta.xml)
+**Metadata Object:** [`objects/Approval_Matrix__mdt/Approval_Matrix__mdt.object-meta.xml`](file:///c:/Users/10pri/Downloads/evmos%20saleforce/objects/Approval_Matrix__mdt/Approval_Matrix__mdt.object-meta.xml)  
+**Apex Service:** [`classes/EventApprovalService.cls`](file:///c:/Users/10pri/Downloads/evmos%20saleforce/classes/EventApprovalService.cls)
 
-### Why Custom Metadata instead of Hardcoding or Custom Settings?
-- **Anti-Pattern:** Hardcoding `if (budget > 200000)` inside Apex or Flows means a change in corporate policy requires opening the code/flow, changing the number, re-testing, and re-deploying metadata.
-- **Why Not Custom Settings?** Custom Settings data cannot be packaged or deployed easily across environments via Salesforce CLI without data loading scripts.
-- **Best Practice Solution: Custom Metadata Types (CMDT):**
-  - CMDT records are **metadata, not data**. They deploy directly through git and CI/CD pipelines.
-  - CMDT queries do not count against the SOQL governor limits in Apex and can be accessed directly in Flow formulas (`$CustomMetadata.Approval_Settings__mdt...`).
+### Category-Wise Delegation of Authority (DOA) Matrix:
+To eliminate approval bottlenecks and prevent executive approval fatigue, approval thresholds are dynamic per event category:
+
+| Category | Tier 1: Auto-Approve Limit | Tier 2: Manager Limit | Tier 3: Finance/Executive Signoff |
+| :--- | :---: | :---: | :---: |
+| **Webinar** | $\le$ ₹30,000 | ₹30,001 – ₹1,00,000 | > ₹1,00,000 |
+| **Meetup** | $\le$ ₹50,000 | ₹50,001 – ₹1,50,000 | > ₹1,50,000 |
+| **Workshop** | $\le$ ₹1,00,000 | ₹1,00,001 – ₹3,00,000 | > ₹3,00,000 |
+| **Training** | $\le$ ₹1,00,000 | ₹1,00,001 – ₹3,00,000 | > ₹3,00,000 |
+| **Hackathon** | $\le$ ₹1,50,000 | ₹1,50,001 – ₹5,00,000 | > ₹5,00,000 |
+| **Conference** | $\le$ ₹2,50,000 | ₹2,50,001 – ₹10,00,000 | > ₹10,00,000 |
+| **Concert** | $\le$ ₹3,00,000 | ₹3,00,001 – ₹15,00,000 | > ₹15,00,000 |
+| **Executive Summit** | ₹0 *(Always Review)* | Up to ₹5,00,000 | > ₹5,00,000 |
+| **Other** | $\le$ ₹50,000 | ₹50,001 – ₹2,00,000 | > ₹2,00,000 |
+
+### Lightning Flow Integration (`EventApprovalService.evaluateForFlow`):
+- The Screen Flow invokes `EventApprovalService.cls` via an `@InvocableMethod`.
+- The service queries `Approval_Matrix__mdt.getAll()` (0 SOQL queries) and returns:
+  - `isAutoApproved` (Boolean)
+  - `requiresManagerApproval` (Boolean)
+  - `requiresFinanceSignoff` (Boolean)
+  - `guidanceMessage` (String)
+- If `isAutoApproved == true`, the Flow automatically updates `Approval_Status__c = 'Approved'` without human delay.
+- If `requiresManagerApproval == true`, the Flow locks the record and submits to `Event_Budget_Approval`.
 
 ---
 

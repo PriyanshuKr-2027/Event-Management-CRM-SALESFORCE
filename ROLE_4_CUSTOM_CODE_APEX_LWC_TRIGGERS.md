@@ -18,11 +18,11 @@ All programmatic code in this repository was built according to enterprise Sales
    - Guest/Attendee booking logic uses controlled system mode (`without sharing`) with server-side field-level validation and sanitize logic.
 5. **Modern Reactive Front-End:** Native **Lightning Web Components (LWC)** with reactive properties, wire adapters, custom events, and CSS design tokens.
 6. **Pixel-Perfect PDF Generation:** Visualforce page with custom controller extension rendered as PDF for event entry passes.
-7. **100% Test Pass Rate (41/41 passing unit tests):** Comprehensive test suites with `@TestSetup`, `System.runAs()`, and governor limit isolation.
+7. **100% Test Pass Rate (49/49 passing unit tests):** Comprehensive test suites with `@TestSetup`, `System.runAs()`, and governor limit isolation.
 
 ---
 
-## 2. Apex Code Structure (14 Apex Classes)
+## 2. Apex Code Structure (16 Apex Classes)
 
 ```
 classes/
@@ -32,6 +32,8 @@ classes/
 ├── OrganizerDashboardControllerTest.cls  // 5 Unit tests for dashboard
 ├── PaymentGatewayService.cls             // Adapter for Custom Metadata gateway integration
 ├── PaymentGatewayServiceTest.cls         // 5 Unit tests for gateway & HMAC verification
+├── EventApprovalService.cls              // Dynamic multi-tier approval evaluation engine
+├── EventApprovalServiceTest.cls          // 8 Unit tests for category matrix routing
 ├── EventRegistrationHandler.cls         // Core business logic engine
 ├── RegistrationTriggerHandler.cls        // Trigger dispatcher for Registration__c
 ├── RegistrationTriggerTest.cls           // 8 Unit tests for registration trigger
@@ -92,7 +94,14 @@ classes/
   - Supports enterprise HMAC-SHA256 signature verification via `Crypto.generateMac('HmacSHA256', ...)` for incoming gateway webhooks.
   - Enables zero-downtime switching from Sandbox (simulation) to Production (Razorpay/Cashfree) without code deployments.
 
-#### 7. `TicketTypeWrapper.cls`
+#### 7. `EventApprovalService.cls`
+- **Role:** Dynamic multi-tier approval evaluation engine.
+- **Responsibilities:**
+  - Connects Lightning Flow Builder to `Approval_Matrix__mdt` via `@InvocableMethod evaluateForFlow(...)`.
+  - Determines whether an event proposal is `AUTO_APPROVED`, requires `MANAGER_APPROVAL_REQUIRED`, or escalates to `FINANCE_EXECUTIVE_APPROVAL_REQUIRED`.
+  - Programmatically submits event records into the `Event_Budget_Approval` process via `Approval.ProcessSubmitRequest`.
+
+#### 8. `TicketTypeWrapper.cls`
 - **Role:** Pure Data Transfer Object (DTO).
 - Annotates properties with `@AuraEnabled` so that it can be passed seamlessly between Flow Builder and LWC components.
 
@@ -179,12 +188,13 @@ lwc/
 | **`EventBookingControllerTest`** | 8 | Positive booking, Sold-out capacity handling, Duplicate email resolution, Invalid payment simulation. |
 | **`OrganizerDashboardControllerTest`** | 5 | Metric calculation accuracy, Event Manager vs Organizer scope, Check-in status updates. |
 | **`PaymentGatewayServiceTest`** | 5 | Custom metadata config retrieval, standard UPI Intent generation, Sandbox initialization, HMAC-SHA256 signature verification. |
+| **`EventApprovalServiceTest`** | 8 | Category matrix routing (Concert, Hackathon, Training, Summit), auto-approvals, Invocable Flow testing. |
 | **`RegistrationTriggerTest`** | 8 | Single & bulk (200 records) inserts, Capacity decrement verification, Cancelled registration inventory release. |
 | **`TicketTypeTriggerTest`** | 6 | Total capacity exceeding venue rejection, Delete prevention when tickets exist. |
 | **`PrintableTicketExtensionTest`** | 3 | PDF page parameter binding, QR URL generation, Missing ID handling. |
 | **`AttendeeJourneyE2ETest`** | 3 | E2E attendee discovery, booking, and double-payment idempotency guards. |
 | **`OrganizerJourneyE2ETest`** | 4 | E2E manager approval process, auto-approval, rejection, and capacity overflow. |
-| **Total** | **41 Passing** | **100% Pass Rate** |
+| **Total** | **49 Passing** | **100% Pass Rate** |
 
 ---
 

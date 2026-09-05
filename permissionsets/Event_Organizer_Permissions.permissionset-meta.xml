@@ -305,6 +305,10 @@
 
     <!-- Apex Class Accesses -->
     <classAccesses>
+        <apexClass>EventApprovalService</apexClass>
+        <enabled>true</enabled>
+    </classAccesses>
+    <classAccesses>
         <apexClass>OrganizerDashboardController</apexClass>
         <enabled>true</enabled>
     </classAccesses>

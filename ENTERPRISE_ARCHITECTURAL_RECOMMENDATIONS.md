@@ -207,11 +207,14 @@ During our technical review, 5 core architectural areas were identified where ra
 
 ---
 
-## 6. Issue 5: Approval Architecture (Single Hardcoded CMDT vs. Multi-Tier Matrix)
+## 6. Issue 5: Approval Architecture (Single Hardcoded CMDT vs. Multi-Tier Matrix) - [IMPLEMENTED]
 
-### Current Implementation & Vulnerability
-- **Current State:** A single custom metadata record `Approval_Settings__mdt.Default_Threshold` with a hardcoded value of `200,000`.
-- **Vulnerability:** Real organizations do not have a single flat budget threshold. A small workshop with a ₹50,000 budget might need zero approvals, a ₹5,00,000 regional summit needs the Event Director, and a ₹50,00,000 international conference requires VP of Marketing and CFO sign-off. Hardcoding a single flat number forces either approval fatigue (too many low approvals) or financial risk (massive budgets slipping through).
+> [!TIP]
+> **Implementation Milestone:** **Item 5 (Dynamic Multi-Tier Category Approval Engine)** has been successfully implemented and deployed! The system now leverages `Approval_Matrix__mdt` with 9 category threshold records (including `Concert`, `Hackathon`, `Executive Summit`, and `Training`) and `EventApprovalService.cls` with `@InvocableMethod` support for Lightning Flow.
+
+### Current Implementation & Upgraded Capabilities
+- **Current State:** A category-wise Custom Metadata matrix `Approval_Matrix__mdt` connected to `EventApprovalService.cls`.
+- **Architectural Value:** Prevents executive approval fatigue and enforces delegation of authority dynamically based on event risk profile.
 
 ---
 

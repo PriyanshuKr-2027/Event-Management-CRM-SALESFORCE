@@ -135,4 +135,10 @@
         <application>Event_Management</application>
         <visible>true</visible>
     </applicationVisibilities>
+
+    <!-- Apex Class Accesses -->
+    <classAccesses>
+        <apexClass>EventApprovalService</apexClass>
+        <enabled>true</enabled>
+    </classAccesses>
 </PermissionSet>

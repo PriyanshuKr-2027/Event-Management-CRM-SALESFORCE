@@ -23,6 +23,26 @@
                 <label>Workshop</label>
             </value>
             <value>
+                <fullName>Training</fullName>
+                <default>false</default>
+                <label>Training</label>
+            </value>
+            <value>
+                <fullName>Hackathon</fullName>
+                <default>false</default>
+                <label>Hackathon</label>
+            </value>
+            <value>
+                <fullName>Concert</fullName>
+                <default>false</default>
+                <label>Concert</label>
+            </value>
+            <value>
+                <fullName>Executive Summit</fullName>
+                <default>false</default>
+                <label>Executive Summit</label>
+            </value>
+            <value>
                 <fullName>Webinar</fullName>
                 <default>false</default>
                 <label>Webinar</label>

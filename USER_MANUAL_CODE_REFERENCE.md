@@ -134,16 +134,26 @@ Use this manual to prepare for code walkthroughs, project reviews, and professor
 
 ---
 
-### 7. `TicketTypeWrapper.cls`
+### 7. `EventApprovalService.cls`
+- **Role:** Dynamic multi-tier approval evaluation engine.
+- **Key Architecture:**
+  - Connects Lightning Flow Builder to `Approval_Matrix__mdt` via `@InvocableMethod evaluateForFlow(...)`.
+  - Implements category-specific thresholds (Concert, Hackathon, Training, Summit, Webinar, Meetup).
+  - Programmatically submits event records to `Event_Budget_Approval` process via `Approval.ProcessSubmitRequest`.
+
+---
+
+### 8. `TicketTypeWrapper.cls`
 - **Role:** Apex-Defined Data Type (DTO) used by the Screen Flow (`Event_Creation_Screen_Flow`) and LWC (`ticketTypeCollector`).
 - **Fields:** `name` (String), `price` (Decimal), `quota` (Decimal), `description` (String).
 
 ---
 
-### 8. Apex Test Classes (100% Pass Rate - 41 Tests)
+### 9. Apex Test Classes (100% Pass Rate - 49 Tests)
 - `EventBookingControllerTest.cls`: Tests event queries, multi-ticket booking, atomic quota overflow failures, payment idempotency, and ticket roster generation.
 - `OrganizerDashboardControllerTest.cls`: Tests dashboard metric aggregation, revenue calculations, and empty-state handling.
 - `PaymentGatewayServiceTest.cls`: Tests metadata config fetching, UPI payload generation, sandbox order initialization, and HMAC-SHA256 signature verification.
+- `EventApprovalServiceTest.cls`: Tests category matrix routing, multi-tier threshold evaluation, and Invocable Flow execution.
 - `RegistrationTriggerHandlerTest.cls`: Tests quota boundaries, sold-out triggers, closed events, and bulk safety.
 - `TicketTypeTriggerHandlerTest.cls`: Tests venue capacity overflow enforcement and sibling quota updates.
 - `OrganizerJourneyE2ETest.cls`: End-to-end integration test simulating the entire Organizer lifecycle: event creation, capacity checks, budget approval submission, and manager approval/rejection.
