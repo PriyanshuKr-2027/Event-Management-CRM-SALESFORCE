@@ -4,21 +4,12 @@ import { FlowAttributeChangeEvent } from 'lightning/flowSupport';
 let keySeq = 0;
 
 /**
- * Screen Flow custom component. Drop this into the Add_Ticket_Type screen
- * of Event_Creation_Screen_Flow in place of the native Go-To-Connector loop
- * (elements 6-9 in event-creation-flow.md). One screen, live add/remove
- * rows, instead of a screen that re-enters itself per ticket type.
+ * Screen Flow custom component for collecting ticket types.
  *
- * Flow-facing contract (see the matching <property> entries in
- * ticketTypeCollector.js-meta.xml):
- *   - Input:  venueCapacity        (Number)  — bind to Get_Selected_Venue_Capacity's output
- *   - Output: ticketTypes          (TicketTypeWrapper[]) — bind to a collection
- *             variable of Apex-Defined type TicketTypeWrapper
- *   - Output: runningQuotaTotal    (Number)  — live sum, if the Review screen wants it
- *
- * Flow calls @api validate() automatically when the user clicks the
- * screen's own Next button — this component does NOT render its own
- * Next/Back buttons, Flow supplies those.
+ * Flow-facing contract:
+ *   - Input:  venueCapacity        (Number)  — capacity of selected venue
+ *   - Output: ticketTypes          (TicketTypeWrapper[]) — collection of ticket types
+ *   - Output: runningQuotaTotal    (Number)  — total allocated quota
  */
 export default class TicketTypeCollector extends LightningElement {
     @api venueCapacity = 0;
@@ -29,8 +20,6 @@ export default class TicketTypeCollector extends LightningElement {
 
     @api
     get ticketTypes() {
-        // Strip the internal 'key' before handing back to Flow — Flow's
-        // TicketTypeWrapper shape only has name/price/quota/description.
         return this._ticketTypes.map(({ key, ...rest }) => rest);
     }
 
@@ -38,23 +27,18 @@ export default class TicketTypeCollector extends LightningElement {
         if (!value || !Array.isArray(value)) {
             return;
         }
-        // Guard against feedback loop from FlowAttributeChangeEvent.
-        // If incoming value has identical content to our internal state, don't recreate objects/keys.
-        const current = this.ticketTypes;
-        if (JSON.stringify(current) === JSON.stringify(value)) {
+        // If we already have user-entered rows in component state, do NOT let
+        // Flow's two-way binding overwrite them and destroy user focus/typing.
+        if (this._ticketTypes && this._ticketTypes.length > 0) {
             return;
         }
-        // Pre-populate preserving existing keys whenever possible to avoid DOM re-renders
-        this._ticketTypes = value.map((tt, index) => {
-            const existingKey = this._ticketTypes[index] ? this._ticketTypes[index].key : this.nextKey();
-            return {
-                key: existingKey,
-                name: tt.name || '',
-                price: tt.price !== undefined && tt.price !== null ? tt.price : null,
-                quota: tt.quota !== undefined && tt.quota !== null ? tt.quota : null,
-                description: tt.description || ''
-            };
-        });
+        this._ticketTypes = value.map((tt) => ({
+            key: this.nextKey(),
+            name: tt.name || '',
+            price: tt.price !== undefined && tt.price !== null ? tt.price : null,
+            quota: tt.quota !== undefined && tt.quota !== null ? tt.quota : null,
+            description: tt.description || ''
+        }));
     }
 
     // ---- Derived display state ---------------------------------------------
@@ -83,7 +67,25 @@ export default class TicketTypeCollector extends LightningElement {
         return `tt-${keySeq}`;
     }
 
+    syncFromDOM() {
+        const inputs = this.template.querySelectorAll('lightning-input');
+        if (!inputs || inputs.length === 0) return;
+        inputs.forEach((input) => {
+            const key = input.dataset.key;
+            const field = input.dataset.field;
+            let val = input.value;
+            if (field === 'price' || field === 'quota') {
+                val = val === '' || val === null || isNaN(val) ? null : Number(val);
+            }
+            const target = this._ticketTypes.find((tt) => tt.key === key);
+            if (target) {
+                target[field] = val;
+            }
+        });
+    }
+
     handleAddTicketType() {
+        this.syncFromDOM();
         this._ticketTypes = [
             ...this._ticketTypes,
             { key: this.nextKey(), name: '', price: null, quota: null, description: '' }
@@ -92,6 +94,7 @@ export default class TicketTypeCollector extends LightningElement {
     }
 
     handleRemoveTicketType(event) {
+        this.syncFromDOM();
         const key = event.currentTarget.dataset.key;
         this._ticketTypes = this._ticketTypes.filter((tt) => tt.key !== key);
         this.notifyFlow();
@@ -109,13 +112,19 @@ export default class TicketTypeCollector extends LightningElement {
         const target = this._ticketTypes.find((tt) => tt.key === key);
         if (target) {
             target[field] = value;
-            this.notifyFlow();
         }
+        // CRITICAL: Do NOT dispatch FlowAttributeChangeEvent on every keystroke!
+        // Dispatching FlowAttributeChangeEvent on keystroke causes Salesforce Flow
+        // to re-evaluate screen reactivity and re-render the host component,
+        // which steals focus away from the input after a single character.
     }
 
-    // Keeps Flow's bound variables live-updated on every edit, not just on
-    // Next — useful if a later screen (e.g. Review) references them before
-    // the user leaves this screen.
+    handleBlur() {
+        // Dispatch to Flow only when the user finishes typing and leaves the field
+        this.syncFromDOM();
+        this.notifyFlow();
+    }
+
     notifyFlow() {
         this.dispatchEvent(new FlowAttributeChangeEvent('ticketTypes', this.ticketTypes));
         this.dispatchEvent(new FlowAttributeChangeEvent('runningQuotaTotal', this.runningQuotaTotal));
@@ -125,6 +134,9 @@ export default class TicketTypeCollector extends LightningElement {
 
     @api
     validate() {
+        this.syncFromDOM();
+        this.notifyFlow();
+
         if (this._ticketTypes.length === 0) {
             return {
                 isValid: false,
