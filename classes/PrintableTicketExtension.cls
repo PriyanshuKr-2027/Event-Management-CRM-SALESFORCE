@@ -1,8 +1,10 @@
 /**
- * @description Controller extension for PrintableTicket.page.
+ * @description Controller for PrintableTicket.page.
  * Supports both single-ticket printing and multi-attendee group booking passes.
+ * Uses 'without sharing' so that authenticated attendees can generate their PDF admission passes
+ * without being blocked by private OWD on parent Event records.
  */
-public with sharing class PrintableTicketExtension {
+public without sharing class PrintableTicketExtension {
 
     public Ticket__c primaryTicket { get; set; }
     public List<Ticket__c> groupTickets { get; set; }
@@ -10,14 +12,41 @@ public with sharing class PrintableTicketExtension {
     public Integer totalAttendeeCount { get; set; }
     public Decimal totalGroupPrice { get; set; }
 
+    /**
+     * @description Default constructor for custom controller usage.
+     * Extracts the 'id' parameter from the current Visualforce page URL.
+     */
+    public PrintableTicketExtension() {
+        Id ticketId = ApexPages.currentPage() != null 
+            ? ApexPages.currentPage().getParameters().get('id') 
+            : null;
+        init(ticketId);
+    }
+
+    /**
+     * @description StandardController constructor for backwards compatibility and unit test harnesses.
+     * @param stdController The StandardController instance.
+     */
     public PrintableTicketExtension(ApexPages.StandardController stdController) {
-        Id ticketId = stdController.getId();
+        Id ticketId = stdController != null ? stdController.getId() : null;
+        if (ticketId == null && ApexPages.currentPage() != null) {
+            ticketId = ApexPages.currentPage().getParameters().get('id');
+        }
+        init(ticketId);
+    }
+
+    /**
+     * @description Queries ticket details and any associated sibling tickets in a group booking.
+     * @param ticketId The ID of the Ticket__c record.
+     */
+    private void init(Id ticketId) {
         this.groupTickets = new List<Ticket__c>();
         this.isGroupBooking = false;
         this.totalAttendeeCount = 1;
         this.totalGroupPrice = 0;
 
         if (ticketId == null) {
+            this.primaryTicket = new Ticket__c();
             return;
         }
 
@@ -37,6 +66,7 @@ public with sharing class PrintableTicketExtension {
         ];
 
         if (currentTickets.isEmpty()) {
+            this.primaryTicket = new Ticket__c();
             return;
         }
 
