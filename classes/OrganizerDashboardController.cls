@@ -26,15 +26,44 @@ public with sharing class OrganizerDashboardController {
     public static List<EventSummaryWrapper> getMyEvents() {
         Id currentUserId = UserInfo.getUserId();
 
-        List<Event__c> events = [
-            SELECT Id, Name, Start_Date_Time__c, Venue__c, Venue__r.Name, Venue__r.Venue_Capacity__c,
-                   Approval_Status__c, Publication_Status__c, Registration_Status__c,
-                   (SELECT Id, Quota__c, Booked_Seats__c, Price__c FROM Ticket_Types__r),
-                   (SELECT Id, Registration_Status__c, Booked_Price__c FROM Registrations__r)
-            FROM Event__c
-            WHERE Organizer__c = :currentUserId
-            ORDER BY Start_Date_Time__c ASC
+        // Check if user is an Event Manager to display an organization-wide overview
+        Boolean isManager = false;
+        List<PermissionSetAssignment> mgrAssignments = [
+            SELECT Id FROM PermissionSetAssignment 
+            WHERE AssigneeId = :currentUserId 
+              AND PermissionSet.Name = 'Event_Manager_Permissions'
+            LIMIT 1
         ];
+        if (!mgrAssignments.isEmpty()) {
+            isManager = true;
+        } else {
+            List<User> users = [SELECT UserRole.DeveloperName FROM User WHERE Id = :currentUserId LIMIT 1];
+            if (!users.isEmpty() && users[0].UserRole != null && users[0].UserRole.DeveloperName == 'Event_Manager') {
+                isManager = true;
+            }
+        }
+
+        List<Event__c> events;
+        if (isManager) {
+            events = [
+                SELECT Id, Name, Start_Date_Time__c, Venue__c, Venue__r.Name, Venue__r.Venue_Capacity__c,
+                       Approval_Status__c, Publication_Status__c, Registration_Status__c,
+                       (SELECT Id, Quota__c, Booked_Seats__c, Price__c FROM Ticket_Types__r),
+                       (SELECT Id, Registration_Status__c, Booked_Price__c FROM Registrations__r)
+                FROM Event__c
+                ORDER BY Start_Date_Time__c ASC
+            ];
+        } else {
+            events = [
+                SELECT Id, Name, Start_Date_Time__c, Venue__c, Venue__r.Name, Venue__r.Venue_Capacity__c,
+                       Approval_Status__c, Publication_Status__c, Registration_Status__c,
+                       (SELECT Id, Quota__c, Booked_Seats__c, Price__c FROM Ticket_Types__r),
+                       (SELECT Id, Registration_Status__c, Booked_Price__c FROM Registrations__r)
+                FROM Event__c
+                WHERE Organizer__c = :currentUserId
+                ORDER BY Start_Date_Time__c ASC
+            ];
+        }
 
         List<EventSummaryWrapper> results = new List<EventSummaryWrapper>();
 

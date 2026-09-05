@@ -264,4 +264,24 @@
         <application>Event_Portal</application>
         <visible>true</visible>
     </applicationVisibilities>
+
+    <!-- Apex Class Accesses -->
+    <classAccesses>
+        <apexClass>OrganizerDashboardController</apexClass>
+        <enabled>true</enabled>
+    </classAccesses>
+    <classAccesses>
+        <apexClass>TicketTypeWrapper</apexClass>
+        <enabled>true</enabled>
+    </classAccesses>
+    <classAccesses>
+        <apexClass>PrintableTicketExtension</apexClass>
+        <enabled>true</enabled>
+    </classAccesses>
+
+    <!-- Visualforce Page Accesses -->
+    <pageAccesses>
+        <apexPage>PrintableTicket</apexPage>
+        <enabled>true</enabled>
+    </pageAccesses>
 </PermissionSet>

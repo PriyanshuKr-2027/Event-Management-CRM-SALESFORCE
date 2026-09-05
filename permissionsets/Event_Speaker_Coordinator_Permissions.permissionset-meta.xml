@@ -37,6 +37,82 @@
         <viewAllRecords>true</viewAllRecords>
     </objectPermissions>
 
+    <!-- Field Permissions: Speaker__c -->
+    <fieldPermissions>
+        <editable>true</editable>
+        <field>Speaker__c.Bio__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>true</editable>
+        <field>Speaker__c.Email__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>true</editable>
+        <field>Speaker__c.Event__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>true</editable>
+        <field>Speaker__c.Expertise__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>true</editable>
+        <field>Speaker__c.Organization__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>true</editable>
+        <field>Speaker__c.Phone__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+
+    <!-- Field Permissions: Event__c (Read Only) -->
+    <fieldPermissions>
+        <editable>false</editable>
+        <field>Event__c.Description__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>false</editable>
+        <field>Event__c.Organizer__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>false</editable>
+        <field>Event__c.Total_Capacity__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>false</editable>
+        <field>Event__c.Booked_Seats__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>false</editable>
+        <field>Event__c.Available_Seats__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+
+    <!-- Field Permissions: Venue__c (Read Only) -->
+    <fieldPermissions>
+        <editable>false</editable>
+        <field>Venue__c.Address__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>false</editable>
+        <field>Venue__c.Contact_Person__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>false</editable>
+        <field>Venue__c.Contact_Phone__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+
     <!-- Tab Visibility -->
     <tabSettings>
         <tab>Event__c</tab>
@@ -44,6 +120,10 @@
     </tabSettings>
     <tabSettings>
         <tab>Speaker__c</tab>
+        <visibility>Visible</visibility>
+    </tabSettings>
+    <tabSettings>
+        <tab>Venue__c</tab>
         <visibility>Visible</visibility>
     </tabSettings>
 

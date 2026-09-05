@@ -10,6 +10,5 @@
     <label>Event Portal</label>
     <navType>Standard</navType>
     <tabs>Event_Booking</tabs>
-    <tabs>Event__c</tabs>
     <uiType>Lightning</uiType>
 </CustomApplication>
