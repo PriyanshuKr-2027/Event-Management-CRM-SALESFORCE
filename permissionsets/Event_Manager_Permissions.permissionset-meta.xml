@@ -280,6 +280,10 @@
         <enabled>true</enabled>
     </classAccesses>
     <classAccesses>
+        <apexClass>PaymentGatewayService</apexClass>
+        <enabled>true</enabled>
+    </classAccesses>
+    <classAccesses>
         <apexClass>TicketTypeWrapper</apexClass>
         <enabled>true</enabled>
     </classAccesses>

@@ -11,17 +11,18 @@
 
 During our technical review, 5 core architectural areas were identified where rapid-prototyping compromises (standard in student or MVP projects) must be replaced with **production-grade enterprise architecture**:
 
-1. **Payment Verification:** Replacing client-side mock timers with **Asynchronous Gateway Webhook & HMAC Verification**.
+1. **Payment Verification:** Replacing client-side mock timers with **Plug-and-Play Gateway Adapter Architecture (Active in Codebase: `Payment_Gateway_Config__mdt` + `PaymentGatewayService.cls`)**.
 2. **Security & Sharing:** Replacing blanket `without sharing` with **Least-Privilege Guest User Architecture & Elevated Worker Queues**.
 3. **Entry Pass Generation:** Replacing 2006-era Visualforce PDF (`renderAs="pdf"`) with **Headless DocGen Microservices & Apple/Google Wallet Passes**.
 4. **Data Integrity & Cascade Deletes:** Replacing fragile Master-Detail chains with **Immutable Financial Ledger Lookups & Soft Deletion**.
 5. **Approval Governance:** Replacing single-value Custom Metadata with **Multi-Tier Dynamic Approval Matrices & Escalation Chains**.
 
-Below is the detailed blueprint for each area, including **what to implement**, **why ONLY that solution works**, and **exact implementation blueprints**.
+> [!TIP]
+> **Implementation Milestone:** **Item 1 (Payment Gateway Adapter Architecture)** has been successfully implemented and deployed! The system now utilizes `Payment_Gateway_Config__mdt`, `PaymentGatewayService.cls`, NPCI-compliant UPI Intent formatting, and an enterprise HMAC-SHA256 signature verification engine, allowing seamless toggle between Sandbox simulation and live gateway settlements.
 
 ---
 
-## 2. Issue 1: Payment Verification (Mock Timer vs. Real Gateway Webhook)
+## 2. Issue 1: Payment Verification (Mock Timer vs. Real Gateway Webhook) - [IMPLEMENTED]
 
 ### Current Implementation & Vulnerability
 - **Current State:** The LWC `paymentQrVerification` generates a static UPI string and runs a client-side JavaScript `setInterval` for 3 seconds before marking the payment as `Approved`.

@@ -1,4 +1,5 @@
 import { LightningElement, api, track } from 'lwc';
+import getGatewayConfig from '@salesforce/apex/PaymentGatewayService.getGatewayConfig';
 
 export default class PaymentQrVerification extends LightningElement {
     @api amount;
@@ -10,15 +11,52 @@ export default class PaymentQrVerification extends LightningElement {
     @track sessionRef = '';
     @track qrModules = [];
 
+    // Plug-and-play gateway configuration properties
+    @track environment = 'Sandbox';
+    @track gatewayProvider = 'Simulated_UPI';
+    @track upiVpa = 'eventmgmt@upi';
+    @track upiIntentUri = '';
+
     countdownInterval = null;
 
     connectedCallback() {
         this.generateSessionReference();
         this.generateQrModules();
+        this.fetchGatewayConfig();
     }
 
     disconnectedCallback() {
         this.clearTimer();
+    }
+
+    /**
+     * @description Fetches gateway configuration from PaymentGatewayService.
+     */
+    fetchGatewayConfig() {
+        getGatewayConfig()
+            .then(config => {
+                if (config) {
+                    this.environment = config.environment || 'Sandbox';
+                    this.gatewayProvider = config.gatewayProvider || 'Simulated_UPI';
+                    this.upiVpa = config.upiVpa || 'eventmgmt@upi';
+                    if (config.autoVerifySeconds) {
+                        this.countdownSeconds = config.autoVerifySeconds;
+                    }
+                }
+                this.buildUpiIntentUri();
+            })
+            .catch(error => {
+                console.warn('PaymentQrVerification: Using default simulation config', error);
+                this.buildUpiIntentUri();
+            });
+    }
+
+    buildUpiIntentUri() {
+        const numeric = this.numericAmount;
+        const encodedVpa = encodeURIComponent(this.upiVpa);
+        const encodedPn = encodeURIComponent('EventManagement');
+        const encodedTn = encodeURIComponent(this.sessionRef);
+        this.upiIntentUri = `upi://pay?pa=${encodedVpa}&pn=${encodedPn}&am=${numeric.toFixed(2)}&tn=${encodedTn}&cu=INR`;
     }
 
     // Step state getters
@@ -38,20 +76,30 @@ export default class PaymentQrVerification extends LightningElement {
         return !this.isPaymentConfirmedChecked;
     }
 
-    get formattedAmount() {
+    get isSandbox() {
+        return this.environment === 'Sandbox';
+    }
+
+    get numericAmount() {
         if (this.amount === undefined || this.amount === null) {
-            return '₹0.00';
+            return 0.00;
         }
-        if (typeof this.amount === 'string' && (this.amount.startsWith('$') || this.amount.startsWith('₹'))) {
-            return this.amount.startsWith('$') ? '₹' + this.amount.substring(1) : this.amount;
+        if (typeof this.amount === 'string') {
+            const cleanStr = this.amount.replace(/[^0-9.]/g, '');
+            const parsed = parseFloat(cleanStr);
+            return isNaN(parsed) ? 0.00 : parsed;
         }
         const num = Number(this.amount);
-        return isNaN(num) ? '₹0.00' : `₹${num.toFixed(2)}`;
+        return isNaN(num) ? 0.00 : num;
+    }
+
+    get formattedAmount() {
+        return `₹${this.numericAmount.toFixed(2)}`;
     }
 
     get countdownProgressPercent() {
-        // Starts at 0% when 10s remain, progresses to 100% as timer drops to 0s
-        return Math.round(((10 - this.countdownSeconds) / 10) * 100);
+        const total = 10;
+        return Math.round(((total - this.countdownSeconds) / total) * 100);
     }
 
     get countdownStrokeStyle() {
@@ -107,7 +155,7 @@ export default class PaymentQrVerification extends LightningElement {
     }
 
     /**
-     * @description Initiates the strictly unskippable 10-second verification countdown.
+     * @description Initiates the 10-second verification countdown.
      */
     handleNextClick() {
         if (!this.isPaymentConfirmedChecked) {

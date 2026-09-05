@@ -18,11 +18,11 @@ All programmatic code in this repository was built according to enterprise Sales
    - Guest/Attendee booking logic uses controlled system mode (`without sharing`) with server-side field-level validation and sanitize logic.
 5. **Modern Reactive Front-End:** Native **Lightning Web Components (LWC)** with reactive properties, wire adapters, custom events, and CSS design tokens.
 6. **Pixel-Perfect PDF Generation:** Visualforce page with custom controller extension rendered as PDF for event entry passes.
-7. **100% Test Pass Rate (36/36 passing unit tests):** Comprehensive test suites with `@TestSetup`, `System.runAs()`, and governor limit isolation.
+7. **100% Test Pass Rate (41/41 passing unit tests):** Comprehensive test suites with `@TestSetup`, `System.runAs()`, and governor limit isolation.
 
 ---
 
-## 2. Apex Code Structure (12 Apex Classes)
+## 2. Apex Code Structure (14 Apex Classes)
 
 ```
 classes/
@@ -30,6 +30,8 @@ classes/
 ├── EventBookingControllerTest.cls        // 8 Unit tests for booking flows
 ├── OrganizerDashboardController.cls      // Metrics & attendee management API
 ├── OrganizerDashboardControllerTest.cls  // 5 Unit tests for dashboard
+├── PaymentGatewayService.cls             // Adapter for Custom Metadata gateway integration
+├── PaymentGatewayServiceTest.cls         // 5 Unit tests for gateway & HMAC verification
 ├── EventRegistrationHandler.cls         // Core business logic engine
 ├── RegistrationTriggerHandler.cls        // Trigger dispatcher for Registration__c
 ├── RegistrationTriggerTest.cls           // 8 Unit tests for registration trigger
@@ -82,7 +84,15 @@ classes/
   - Retrieves `Registration__c`, attendee full name, event venue coordinates, and ticket tier.
   - Constructs the dynamic QR code endpoint URL encode string.
 
-#### 6. `TicketTypeWrapper.cls`
+#### 6. `PaymentGatewayService.cls`
+- **Role:** Plug-and-play Payment Gateway Adapter service.
+- **Responsibilities:**
+  - Decouples client payment verification from hardcoded values using `Payment_Gateway_Config__mdt`.
+  - Generates NPCI-compliant UPI Intent strings (`upi://pay?pa=...&am=...&tn=...&cu=INR`).
+  - Supports enterprise HMAC-SHA256 signature verification via `Crypto.generateMac('HmacSHA256', ...)` for incoming gateway webhooks.
+  - Enables zero-downtime switching from Sandbox (simulation) to Production (Razorpay/Cashfree) without code deployments.
+
+#### 7. `TicketTypeWrapper.cls`
 - **Role:** Pure Data Transfer Object (DTO).
 - Annotates properties with `@AuraEnabled` so that it can be passed seamlessly between Flow Builder and LWC components.
 
@@ -162,16 +172,19 @@ lwc/
 
 ---
 
-## 6. Unit Testing Strategy & Code Quality (36 Tests)
+## 6. Unit Testing Strategy & Code Quality (41 Tests)
 
 | Test Class Name | Test Methods | Core Scenarios Tested |
 | :--- | :---: | :--- |
 | **`EventBookingControllerTest`** | 8 | Positive booking, Sold-out capacity handling, Duplicate email resolution, Invalid payment simulation. |
 | **`OrganizerDashboardControllerTest`** | 5 | Metric calculation accuracy, Event Manager vs Organizer scope, Check-in status updates. |
+| **`PaymentGatewayServiceTest`** | 5 | Custom metadata config retrieval, standard UPI Intent generation, Sandbox initialization, HMAC-SHA256 signature verification. |
 | **`RegistrationTriggerTest`** | 8 | Single & bulk (200 records) inserts, Capacity decrement verification, Cancelled registration inventory release. |
 | **`TicketTypeTriggerTest`** | 6 | Total capacity exceeding venue rejection, Delete prevention when tickets exist. |
 | **`PrintableTicketExtensionTest`** | 3 | PDF page parameter binding, QR URL generation, Missing ID handling. |
-| **Total** | **36 Passing** | **100% Pass Rate** |
+| **`AttendeeJourneyE2ETest`** | 3 | E2E attendee discovery, booking, and double-payment idempotency guards. |
+| **`OrganizerJourneyE2ETest`** | 4 | E2E manager approval process, auto-approval, rejection, and capacity overflow. |
+| **Total** | **41 Passing** | **100% Pass Rate** |
 
 ---
 

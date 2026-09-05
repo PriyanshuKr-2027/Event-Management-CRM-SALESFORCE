@@ -4,8 +4,15 @@
         <!-- Step 1: Entry Payment Screen -->
         <template if:true={isEntryStep}>
             <div class="slds-text-align_center slds-m-bottom_medium">
+                <!-- Environment & Gateway Badge -->
+                <div class="slds-m-bottom_x-small">
+                    <span class="slds-badge slds-theme_warning" title="Configured via Payment_Gateway_Config__mdt">
+                        <lightning-icon icon-name="utility:lock" size="xx-small" class="slds-m-right_xx-small"></lightning-icon>
+                        {environment} Mode • {gatewayProvider}
+                    </span>
+                </div>
                 <h2 class="payment-title slds-text-heading_medium slds-m-bottom_x-small">Complete Your Payment</h2>
-                <p class="payment-subtitle slds-text-color_weak">Scan the QR code to complete your payment.</p>
+                <p class="payment-subtitle slds-text-color_weak">Scan the UPI QR code using any UPI app (GPay / PhonePe / Paytm).</p>
             </div>
 
             <!-- Amount display badge -->
@@ -52,13 +59,26 @@
                         </template>
                     </svg>
                 </div>
-                <div class="reference-code slds-text-body_small slds-m-top_small slds-text-color_weak">
-                    Ref: <code>{sessionRef}</code>
+
+                <!-- UPI Standard Details Box -->
+                <div class="upi-details-box slds-box slds-theme_shade slds-m-top_small slds-p-around_x-small slds-text-align_left" style="max-width: 280px; margin-left: auto; margin-right: auto;">
+                    <div class="slds-grid slds-grid_align-spread slds-m-bottom_xx-small">
+                        <span class="slds-text-body_small"><strong>Merchant VPA:</strong></span>
+                        <span class="slds-text-body_small font-mono">{upiVpa}</span>
+                    </div>
+                    <div class="slds-grid slds-grid_align-spread">
+                        <span class="slds-text-body_small"><strong>Txn Ref:</strong></span>
+                        <span class="slds-text-body_small font-mono">{sessionRef}</span>
+                    </div>
+                </div>
+
+                <div class="reference-code slds-text-body_small slds-m-top_x-small slds-text-color_weak">
+                    Standard NPCI UPI Intent Format
                 </div>
             </div>
 
             <!-- Confirmation Checkbox -->
-            <div class="checkbox-container slds-m-top_large slds-p-around_small slds-box slds-theme_shade">
+            <div class="checkbox-container slds-m-top_medium slds-p-around_small slds-box slds-theme_shade">
                 <lightning-input 
                     type="checkbox" 
                     label="I have completed the payment" 
@@ -77,6 +97,9 @@
                     onclick={handleNextClick}
                     class="slds-button_stretch payment-action-btn">
                 </lightning-button>
+                <p class="slds-text-body_small slds-text-color_weak slds-m-top_x-small">
+                    Plug-and-play adapter active. Replace keys in Custom Metadata to enable live bank settlement.
+                </p>
             </div>
         </template>
 
@@ -85,7 +108,7 @@
             <div class="verifying-container slds-text-align_center slds-p-vertical_xx-large">
                 <h2 class="verifying-title slds-text-heading_medium slds-m-bottom_x-small">Verifying Payment</h2>
                 <p class="verifying-subtitle slds-text-color_weak slds-m-bottom_large">
-                    Please wait while we confirm your payment.
+                    Awaiting verification confirmation from payment network ({gatewayProvider})...
                 </p>
 
                 <!-- Animated Countdown Circle -->
@@ -120,7 +143,7 @@
 
                 <h2 class="confirmed-title slds-text-heading_large slds-m-bottom_x-small">Payment Confirmed!</h2>
                 <p class="confirmed-msg slds-text-body_regular slds-text-color_weak slds-m-bottom_xx-small">
-                    Your payment has been successfully verified.
+                    Your payment has been successfully verified via {gatewayProvider}.
                 </p>
                 <p class="confirmed-submsg slds-text-heading_small slds-m-bottom_large slds-text-color_success">
                     Your registration is confirmed.
@@ -129,7 +152,8 @@
                 <div class="confirmed-details slds-box slds-theme_shade slds-m-bottom_large slds-text-align_left">
                     <p class="slds-m-bottom_xx-small"><strong>Transaction Ref:</strong> {sessionRef}</p>
                     <p class="slds-m-bottom_xx-small"><strong>Amount Paid:</strong> {formattedAmount}</p>
-                    <p class="slds-m-bottom_none"><strong>Payment Method:</strong> UPI (Verified)</p>
+                    <p class="slds-m-bottom_xx-small"><strong>Gateway Provider:</strong> {gatewayProvider}</p>
+                    <p class="slds-m-bottom_none"><strong>Status:</strong> Completed (Verified)</p>
                 </div>
 
                 <lightning-button 

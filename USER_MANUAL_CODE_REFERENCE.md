@@ -125,15 +125,25 @@ Use this manual to prepare for code walkthroughs, project reviews, and professor
 
 ---
 
-### 6. `TicketTypeWrapper.cls`
+### 6. `PaymentGatewayService.cls`
+- **Role:** Enterprise Payment Gateway Service implementing the Adapter Pattern.
+- **Key Architecture & Security:**
+  - **Zero-Code Switching:** Uses Custom Metadata (`Payment_Gateway_Config__mdt`) to toggle between Sandbox simulation and live gateway settlements (Razorpay/Cashfree).
+  - **UPI Intent Generation:** Produces NPCI-compliant `upi://pay?pa={vpa}&pn=EventManagement&am={amount}&tn={ref}&cu=INR` URIs readable by any phone scanner.
+  - **HMAC-SHA256 Webhook Verification:** Verifies payload integrity and digital signatures via `Crypto.generateMac('HmacSHA256', ...)` to eliminate client-side tampering.
+
+---
+
+### 7. `TicketTypeWrapper.cls`
 - **Role:** Apex-Defined Data Type (DTO) used by the Screen Flow (`Event_Creation_Screen_Flow`) and LWC (`ticketTypeCollector`).
 - **Fields:** `name` (String), `price` (Decimal), `quota` (Decimal), `description` (String).
 
 ---
 
-### 7. Apex Test Classes (100% Pass Rate - 36 Tests)
+### 8. Apex Test Classes (100% Pass Rate - 41 Tests)
 - `EventBookingControllerTest.cls`: Tests event queries, multi-ticket booking, atomic quota overflow failures, payment idempotency, and ticket roster generation.
 - `OrganizerDashboardControllerTest.cls`: Tests dashboard metric aggregation, revenue calculations, and empty-state handling.
+- `PaymentGatewayServiceTest.cls`: Tests metadata config fetching, UPI payload generation, sandbox order initialization, and HMAC-SHA256 signature verification.
 - `RegistrationTriggerHandlerTest.cls`: Tests quota boundaries, sold-out triggers, closed events, and bulk safety.
 - `TicketTypeTriggerHandlerTest.cls`: Tests venue capacity overflow enforcement and sibling quota updates.
 - `OrganizerJourneyE2ETest.cls`: End-to-end integration test simulating the entire Organizer lifecycle: event creation, capacity checks, budget approval submission, and manager approval/rejection.
