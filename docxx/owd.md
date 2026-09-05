@@ -1,742 +1,232 @@
-# 1. First: don't make "Manager" a separate Profile
+# Security Architecture, OWD, Roles & Access Control Specification
 
-Your requirement says **Event Organiser/Manager**, but the original specification names **Organizer** and separately requires an approval for high-budget events.
+> **Module:** Security, Access Control & Governance  
+> **Source of Truth:** `permissionsets/`, `roles/`, `permissionsetgroups/`, `objects/`, and `ROLE_2_SECURITY_OWD_PERMISSIONS.md`  
+> **Target Audience:** Technical Evaluators, Architects & Viva Examiners
 
-```text
-ADMIN
-  │
-  ├── EVENT MANAGER / SENIOR ORGANIZER
-  │
-  ├── ORGANIZER
-  │
-  ├── REGISTRATION TEAM
-  │
-  ├── FINANCE
-  │
-  └── SPEAKER COORDINATOR
+---
+
+## 1. Executive Summary & Security Philosophy
+
+The security model of the Event Management CRM is built upon Salesforce's **Defense-in-Depth** and **Principle of Least Privilege (PoLP)** paradigms.
+
+Instead of relying on broad, bloated user profiles, the architecture strictly decouples **Authentication & Base Access** (Profiles) from **Job Function Entitlements** (Permission Sets & Groups), backed by granular **Record-Level Security** (OWD and Role Hierarchy).
+
+```
++-------------------------------------------------------------------------+
+|                         1. AUTHENTICATION LAYER                         |
+| Login IP Ranges, Login Hours, Multi-Factor Authentication (MFA)         |
++-------------------------------------------------------------------------+
+                                     |
+                                     v
++-------------------------------------------------------------------------+
+|                  2. OBJECT-LEVEL SECURITY (OLS - CRUD)                  |
+| Minimal Base Profile + 6 Modular Permission Sets (Manager/Org/Fin/etc.) |
++-------------------------------------------------------------------------+
+                                     |
+                                     v
++-------------------------------------------------------------------------+
+|                 3. FIELD-LEVEL SECURITY (FLS - Read/Edit)               |
+| Protects Sensitive Attributes (Proposed_Budget__c, Approved_By__c, etc.)|
++-------------------------------------------------------------------------+
+                                     |
+                                     v
++-------------------------------------------------------------------------+
+|                4. RECORD-LEVEL SECURITY (OWD & Sharing)                 |
+| Organization-Wide Defaults (OWD) -> Role Hierarchy -> Criteria Sharing  |
++-------------------------------------------------------------------------+
+                                     |
+                                     v
++-------------------------------------------------------------------------+
+|               5. PROGRAMMATIC SECURITY (Apex Class Sharing)             |
+| Enforces 'with sharing' on controllers; 'without sharing' on guest API  |
++-------------------------------------------------------------------------+
 ```
 
-The **Manager** can be an Organizer with additional permission/approval authority rather than creating another completely separate profile.
+---
 
-That gives us a much cleaner Salesforce security demonstration.
+## 2. Organization-Wide Defaults (OWD) Baseline
+
+OWD establishes the **baseline security** for records a user does **not** own. If a user is not the record owner, OWD dictates whether they can view, edit, or even know the record exists.
+
+| Object API Name | OWD Setting | Grant Access Using Hierarchies | Architectural Justification |
+| :--- | :--- | :---: | :--- |
+| **`Event__c`** | **Private** | **Enabled** | Organizers only view/edit their own assigned events. Event Managers see all events vertically via the Role Hierarchy. Public users interact via controlled portal interfaces. |
+| **`Venue__c`** | **Public Read Only** | **Enabled** | Physical venues are shared corporate facilities. All organizers must be able to view venue capacities, locations, and amenities, but only Operations/Admins can create or modify them. |
+| **`Attendee__c`** | **Private** | **Enabled** | Contains Personal Identifiable Information (PII) including phone, email, and corporate affiliation. Restricted to protect customer privacy. |
+| **`Registration__c`** | **Controlled by Parent** | N/A (Inherited) | Master-Detail relationship with `Event__c`. Security is automatically inherited from the parent event record. |
+| **`Ticket_Type__c`** | **Controlled by Parent** | N/A (Inherited) | Master-Detail relationship with `Event__c`. Tightly coupled with the event lifecycle. |
+| **`Ticket__c`** | **Controlled by Parent** | N/A (Inherited) | Master-Detail relationship with `Registration__c`. Passes inherit access from registrations. |
+| **`Payment__c`** | **Controlled by Parent** | N/A (Inherited) | Master-Detail relationship with `Registration__c`. Payment data inherits access from registration. |
+| **`Feedback__c`** | **Controlled by Parent** | N/A (Inherited) | Master-Detail relationship with `Event__c`. Organizers review feedback for events they manage. |
+
+> **Key Viva Tip for Examiners:**  
+> When asked: *"Why do Ticket_Type__c, Registration__c, Ticket__c, Payment__c, and Feedback__c not have an independent OWD setting in Sharing Settings?"*  
+> **Answer:** *"Sir, because they are on the detail side of a Master-Detail relationship. In Salesforce, detail objects cannot have independent OWD settings; their access is strictly 'Controlled by Parent'."*
 
 ---
 
-# 2. Our profiles
+## 3. Role Hierarchy Architecture
 
-Let's define **six functional user types**:
+Salesforce uses Role Hierarchy to **open up record access vertically** above the record owner for objects with Private or Public Read-Only OWD. We enabled **Grant Access Using Hierarchies** across all custom objects.
 
-| Profile / User Type     | Main Responsibility                       |
-| ----------------------- | ----------------------------------------- |
-| **Attendee**            | Browse events and manage own bookings     |
-| **Organizer**           | Create/manage events                      |
-| **Event Manager**       | Manage/approve organizational activity    |
-| **Registration Team**   | Manage attendee registrations             |
-| **Finance**             | Manage payments and financial information |
-| **Speaker Coordinator** | Manage speakers                           |
-| **Admin**               | Full system administration                |
+### Role Hierarchy Tree:
 
-The original assignment explicitly specifies five organizational roles; **Attendee and Event Manager are our additions to make your workflow work properly**.
-
----
-
-# 3. Attendee
-
-We've already designed this, but let's formalize the security side.
-
-### Can SEE
-
-- Upcoming events
-- Published event details
-- Available seats
-- Ticket types
-- Their own registrations
-- Their own tickets
-- Their own payments
-- Their own feedback
-
-### Can CREATE
-
-- Their registration through the booking Screen Flow
-- Their feedback
-
-### Can EDIT
-
-Potentially:
-
-- Their own attendee details
-- Their own feedback before submission, depending on our design
-
-### CANNOT SEE
-
-- Other attendees
-- Other attendees' registrations
-- Event revenue
-- Other people's payments
-- Internal event budget
-- Organizer information
-- Finance information
-- Internal reports
-- Admin configuration
-
-### CANNOT DO
-
-- Create/update events
-- Modify event capacity
-- Modify ticket pricing
-- Modify payments
-- Approve budgets
-- Manage speakers
-
----
-
-# 4. Organizer
-
-This is the person actually running events.
-
-### Can SEE
-
-Their assigned:
-
-- Events
-- Venues
-- Speakers associated with their events
-- Registrations for their events
-- Tickets for their events
-- Attendance information
-- Available seats
-- Event status
-- Ticket sales
-- Event revenue/statistics
-
-### Can CREATE
-
-- Events
-- Event-related records
-- Event/speaker associations
-
-### Can EDIT
-
-Their events:
-
-- Event name
-- Description
-- Start Date/Time
-- End Date/Time
-- Venue
-- Capacity
-- Ticket types
-- Proposed budget
-- Event status
-
-But **capacity shouldn't be freely manipulated once registrations exist**, because that could break our seat calculation. We'll enforce this with validation/business logic.
-
-### Cannot directly approve their own high-budget event
-
-This is important.
-
-If:
-
-```text
-Organizer creates Event
-        ↓
-Budget > threshold
-        ↓
-Approval required
+```
+               +-----------------------------------+
+               |        Event Manager (Role)       |
+               | (Full org-wide oversight, reports)|
+               +-----------------------------------+
+                                 |
+         +-----------------------+-----------------------+
+         |                       |                       |
+         v                       v                       v
++-----------------+     +-----------------+     +-----------------+
+| Event Organizer |     |  Event Finance  |     | Event Speaker   |
+|     (Role)      |     |     (Role)      |     |   Coordinator   |
++-----------------+     +-----------------+     +-----------------+
+         |
+         v
++-------------------------+
+| Event Registration Team |
+|         (Role)          |
++-------------------------+
 ```
 
-the Organizer **submits it for approval**, but a Manager approves/rejects it.
+### Role Access & Functional Responsibilities:
 
-That gives us a genuine approval workflow instead of a fake one.
-
----
-
-# 5. Event Manager
-
-The Manager is basically the higher-level event authority.
-
-### Can SEE
-
-Everything an Organizer needs, plus:
-
-- Events managed by organizers
-- Event budgets
-- Event performance
-- Registration statistics
-- Revenue statistics
-- Available seats
-- Reports relevant to event management
-
-### Can CREATE/EDIT
-
-Depending on our final design:
-
-- Events
-- Event configuration
-- Event status
-- Organizer assignments
-
-### Can APPROVE
-
-High-budget events.
-
-Example:
-
-```text
-Proposed Budget = ₹2,00,000
-             ↓
-Threshold = ₹1,00,000
-             ↓
-Approval Required
-             ↓
-Event Manager
-       ↙           ↘
-   APPROVE        REJECT
-```
-
-The original assignment specifically requires manager approval when the proposed event budget exceeds a threshold.
-
-### Important
-
-The Manager should **not be able to approve their own request**.
-
-We'll configure the approval routing accordingly.
+1. **Event Manager (`roles/Event_Manager.role-meta.xml`)**:
+   - Executive head sitting at the apex of the operational hierarchy.
+   - Automatically inherits Read and Edit access to all `Event__c` and child records created by Organizers and Registration staff.
+   - Executive authority for event approvals and org-wide financial reports.
+2. **Event Organizer (`roles/Event_Organizer.role-meta.xml`)**:
+   - Creates and manages assigned events, sets up ticket tiers, coordinates venue booking, and monitors attendance.
+   - Subordinate to Event Manager; cannot view peer organizers' private events.
+3. **Event Registration Team (`roles/Event_Registration_Team.role-meta.xml`)**:
+   - Handles on-desk check-in, manual ticket issuance, and attendee registration assistance.
+   - Sits beneath Event Organizer in the hierarchy.
+4. **Event Finance (`roles/Event_Finance.role-meta.xml`)**:
+   - Reviews payment records, payment gateway transaction IDs, budget allocations, and revenue reconciliation.
+5. **Event Speaker Coordinator (`roles/Event_Speaker_Coordinator.role-meta.xml`)**:
+   - Manages speaker profiles, session scheduling, and logistics.
 
 ---
 
-# 6. Registration Team
+## 4. Modern Profiles vs. Permission Sets Strategy
 
-This team handles registration-related operations.
+### The Modern Salesforce Best Practice:
+Rather than proliferating hard-to-maintain custom profiles, our architecture uses:
+- **Base Profile:** Standard User / Minimum Access Profile.
+- **6 Modular Permission Sets:** Assigned according to job functions.
+- **1 Permission Set Group (`Event_Management_Core_Access`):** Bundles common operational permissions.
 
-### Can SEE
+### Permission Sets Breakdown:
 
-- Attendees
-- Registrations
-- Tickets
-- Events
-- Available seats
-- Registration status
+#### 1. `Event_Manager_Permissions` (`permissionsets/Event_Manager_Permissions.permissionset-meta.xml`)
+- **OLS:** View All & Modify All on `Event__c`, `Venue__c`, `Speaker__c`, `Attendee__c`, `Registration__c`, `Payment__c`, `Feedback__c`.
+- **FLS:** Read/Edit on `Proposed_Budget__c`, `Total_Budget__c`, `Approval_Status__c`, `Approved_By__c`, `Payment__c.Transaction_Id__c`.
+- **Custom Metadata Access:** `Approval_Matrix__mdt`, `Approval_Settings__mdt`, `Payment_Gateway_Config__mdt`.
+- **Apex Access:** `OrganizerDashboardController`, `EventBookingController`, `PrintableTicketExtension`, `EventApprovalService`, `PaymentGatewayService`.
+- **Visualforce Access:** `PrintableTicket`.
 
-### Can CREATE
+#### 2. `Event_Organizer_Permissions` (`permissionsets/Event_Organizer_Permissions.permissionset-meta.xml`)
+- **OLS:** Full CRUD on `Event__c`, `Ticket_Type__c`, `Registration__c`, `Attendee__c`, `Feedback__c`; Read-Only on `Venue__c`.
+- **FLS:** Read/Edit on `Proposed_Budget__c`, `Total_Budget__c`; Read-Only on `Approved_By__c`, `Approval_Status__c`.
+- **Custom Metadata Access:** `Approval_Matrix__mdt`, `Approval_Settings__mdt`, `Payment_Gateway_Config__mdt`.
+- **Apex Access:** `OrganizerDashboardController`, `PrintableTicketExtension`, `EventApprovalService`.
+- **Visualforce Access:** `PrintableTicket`.
 
-Potentially:
+#### 3. `Event_Registration_Team_Permissions` (`permissionsets/Event_Registration_Team_Permissions.permissionset-meta.xml`)
+- **OLS:** Create, Read, Edit on `Attendee__c`, `Registration__c`, `Ticket__c`; Read on `Event__c` and `Ticket_Type__c`.
+- **FLS:** Access to `Attendee__c.Email__c`, `Phone__c`, `Company__c`, `Registration_Date__c`, `Status__c`, `Ticket_Type__c`.
+- **Custom Metadata Access:** `Payment_Gateway_Config__mdt`.
+- **Apex Access:** `EventBookingController`, `PrintableTicketExtension`.
+- **Visualforce Access:** `PrintableTicket`.
 
-- Attendee records
-- Registrations on behalf of attendees
-- Relevant registration-related records
+#### 4. `Event_Finance_Permissions` (`permissionsets/Event_Finance_Permissions.permissionset-meta.xml`)
+- **OLS:** Read & Edit on `Payment__c`; Read on `Event__c`, `Registration__c`, `Ticket_Type__c`.
+- **FLS:** Read/Edit on `Payment__c.Transaction_Id__c`, `Payment_Status__c`, `Payment_Method__c`, `Payment_Date__c`, `Total_Amount__c`, `Discount_Code__c`; Read-Only on `Event__c.Proposed_Budget__c`, `Approved_By__c`.
+- **Custom Metadata Access:** `Approval_Matrix__mdt`, `Payment_Gateway_Config__mdt`.
 
-### Can EDIT
+#### 5. `Event_Speaker_Coordinator_Permissions` (`permissionsets/Event_Speaker_Coordinator_Permissions.permissionset-meta.xml`)
+- **OLS:** Full CRUD on `Speaker__c`; Read on `Event__c`, `Venue__c`.
+- **FLS:** `Speaker__c.Bio__c`, `Email__c`, `Phone__c`, `Expertise__c`, `Organization__c`.
 
-- Registration status
-- Attendee details where operationally required
-- Registration information
-
-### Can SEE but NOT MODIFY
-
-- Event capacity
-- Ticket pricing
-- Event budget
-- Payments
-
-### Cannot
-
-- Approve event budgets
-- Modify financial records
-- Create/change events
-- Manage speakers
-- Change system security
-
-This makes the Registration Team a good example of **limited object/record access**.
-
----
-
-# 7. Finance
-
-This role should be very restricted around financial data.
-
-### Can SEE
-
-- Payments
-- Payment status
-- Registration associated with payment
-- Ticket information needed for reconciliation
-- Event revenue
-- Financial reports
-
-### Can CREATE
-
-- Payment records where appropriate
-
-### Can EDIT
-
-- Payment status
-- Payment reference/details
-- Other finance-specific fields
-
-### Cannot
-
-- Change event capacity
-- Change ticket type/pricing
-- Modify attendee personal information unnecessarily
-- Create speakers
-- Approve event budgets unless we specifically give them approval authority
-
-### Important security demonstration
-
-An Organizer may see:
-
-```text
-Event Revenue = ₹5,40,000
-```
-
-but shouldn't necessarily be able to modify the underlying Payment records.
-
-Finance can manage those records.
+#### 6. `Event_Attendee_Permissions` (`permissionsets/Event_Attendee_Permissions.permissionset-meta.xml`)
+- **OLS:** Create & Edit on `Attendee__c`, `Registration__c`, `Payment__c`, `Feedback__c`; Read-Only on published `Event__c`, `Venue__c`, `Ticket_Type__c`.
+- **FLS:** Access to self-service booking fields, feedback rating, and payment submission details.
+- **Custom Metadata Access:** `Payment_Gateway_Config__mdt` (to render UPI QR codes).
 
 ---
 
-# 8. Speaker Coordinator
+## 5. Field-Level Security (FLS) Matrix
 
-This person's job is speakers.
+FLS ensures that users can only see and edit fields relevant to their job, preventing unauthorized visibility of financial or confidential information.
 
-### Can SEE
+| Object | Field Name | Manager | Organizer | Finance | Reg Team | Speaker Coord | Attendee |
+| :--- | :--- | :---: | :---: | :---: | :---: | :---: | :---: |
+| **`Event__c`** | `Proposed_Budget__c` | **Read/Edit** | **Read/Edit** | **Read Only** | No Access | No Access | No Access |
+| **`Event__c`** | `Total_Budget__c` | Read/Edit | Read/Edit | Read Only | No Access | No Access | No Access |
+| **`Event__c`** | `Approved_By__c` | **Read/Edit** | **Read Only** | **Read Only** | No Access | No Access | No Access |
+| **`Event__c`** | `Approval_Status__c` | Read/Edit | Read Only | Read Only | Read Only | Read Only | Read Only |
+| **`Event__c`** | `Total_Revenue__c` | Read Only | Read Only | Read Only | No Access | No Access | No Access |
+| **`Attendee__c`** | `Email__c` / `Phone__c` | Read/Edit | Read/Edit | Read Only | Read/Edit | No Access | Read/Edit |
+| **`Registration__c`** | `Discount_Code__c` | Read/Edit | Read/Edit | Read Only | Read/Edit | No Access | Read/Edit |
+| **`Payment__c`** | `Transaction_Id__c` | Read/Edit | Read Only | Read/Edit | Read Only | No Access | Read Only |
+| **`Payment__c`** | `Payment_Status__c` | Read/Edit | Read Only | Read/Edit | Read Only | No Access | Read Only |
+| **`Speaker__c`** | `Email__c` / `Bio__c` | Read/Edit | Read/Edit | No Access | No Access | Read/Edit | No Access |
 
-- Speakers
-- Events
-- Speaker-event relationships
-- Relevant event information
-
-### Can CREATE
-
-- Speaker records
-- Speaker assignments
-
-### Can EDIT
-
-- Speaker details
-- Speaker-event assignments
-
-### Cannot
-
-- Modify payments
-- Approve budgets
-- Change registrations
-- Modify attendee records
-- Change ticket availability
-- Modify event financial information
-
-So their Salesforce experience is very focused.
+> **Special Architectural Rule on Universally Required Fields:**  
+> In Salesforce metadata, fields defined with `<required>true</required>` (e.g., `Event__c.Category__c`, `Event__c.Venue__c`, `Event__c.Start_Date_Time__c`, `Ticket_Type__c.Price__c`) **cannot** be explicitly declared in `<fieldPermissions>` in permission set XML files.  
+> Attempting to do so triggers a deployment failure: `Cannot specify field permissions for universally required field`.  
+> In Salesforce, access to universally required fields is automatically inherited whenever a user has Object-Level Security (OLS).
 
 ---
 
-# 9. Admin
+## 6. Custom Metadata Type Security (`<customMetadataTypeAccesses>`)
 
-Admin is the unrestricted system administrator.
+In modern Salesforce releases, when the org security setting **"Require Customize Application permission for direct read access to custom metadata types"** is enabled, non-admin users cannot query Custom Metadata records via SOQL or Apex without explicit permission grants.
 
-### Can SEE
-
-Everything.
-
-```text
-All Events
-All Attendees
-All Registrations
-All Tickets
-All Payments
-All Speakers
-All Feedback
-All Reports
-All Dashboards
-```
-
-### Can DO
-
-Everything required to administer the system:
-
-- Create/edit/delete records
-- Configure objects
-- Configure fields
-- Manage Flows
-- Manage Apex
-- Manage users
-- Manage permissions
-- Configure sharing
-- Configure reports/dashboards
-- Configure Lightning pages
-- Manage approval processes
-
-This is obviously necessary for the actual Salesforce implementation.
+| Custom Metadata Type | Description | Granted To | Justification |
+| :--- | :--- | :--- | :--- |
+| **`Approval_Matrix__mdt`** | Multi-Tier dynamic budget approval thresholds per category | `Event_Manager_Permissions`<br>`Event_Organizer_Permissions`<br>`Event_Finance_Permissions` | Organizers submit events against thresholds; Managers and Finance review category approval rules. |
+| **`Approval_Settings__mdt`** | Global approval rules & flags | `Event_Manager_Permissions`<br>`Event_Organizer_Permissions` | Checked by `EventApprovalService` to determine whether approval routing is globally active. |
+| **`Payment_Gateway_Config__mdt`**| UPI VPA, Merchant Name, Sandbox credentials | `Event_Manager_Permissions`<br>`Event_Organizer_Permissions`<br>`Event_Finance_Permissions`<br>`Event_Attendee_Permissions`<br>`Event_Registration_Team_Permissions` | Attendees and Registration staff need to render dynamic UPI QR codes and retrieve active merchant configuration. |
 
 ---
 
-# 10. Proposed OWD strategy
+## 7. Sharing Enforcement in Apex Code (`with sharing` vs `without sharing`)
 
-I'd make the important transactional objects relatively **private by default**.
-
-For example:
-
-| Object       | Proposed OWD |
-| ------------ | ------------ |
-| Event        | Private      |
-| Registration | Private      |
-| Ticket       | Private      |
-| Payment      | Private      |
-| Feedback     | Private      |
-| Speaker      | Private      |
-| Attendee     | Private      |
-| Venue        | Private      |
-
-Then we open access deliberately using roles/sharing.
-
-### Why?
-
-Because the assignment specifically wants us to demonstrate that different users **cannot access unauthorized data**.
-
-If everything is Public Read/Write, our security demonstration becomes meaningless.
+- **`OrganizerDashboardController.cls` (`public with sharing class`)**:
+  - Enforces record-level security. When an Organizer logs in, SOQL automatically scopes to records they own or have explicit sharing access to. When an Event Manager logs in, Role Hierarchy automatically allows them to see all records.
+- **`EventApprovalService.cls` (`public with sharing class`)**:
+  - Ensures that only users who have permission to view or edit the `Event__c` record can evaluate its approval status or submit it for review.
+- **`PaymentGatewayService.cls` (`public with sharing class`)**:
+  - Adheres to least privilege when reading payment metadata and generating secure cryptographic webhook HMAC signatures.
+- **`EventBookingController.cls` (`public without sharing class`)**:
+  - Attendees booking tickets through the public or guest portal do not own the `Event__c`, `Ticket_Type__c`, or `Registration__c` records. If `with sharing` were used, guest users would receive an authorization fault when attempting to query remaining capacity or create registration records. The controller uses strict input validation and server-side verification to maintain data integrity safely.
 
 ---
 
-# 12. But attendees need to see published events
-
-This is the interesting part.
-
-An attendee needs to see:
-
-> "Upcoming events"
-
-but shouldn't see internal event data.
-
-So we can expose **only the appropriate event information through the attendee-facing UI**, rather than simply making the entire Event object public.
-
-For example:
-
-```text
-EVENT RECORD
-
-PUBLIC INFORMATION
-✓ Name
-✓ Description
-✓ Start Date/Time
-✓ End Date/Time
-✓ Venue
-✓ Ticket Types
-✓ Available Seats
-
-INTERNAL INFORMATION
-✗ Proposed Budget
-✗ Internal Notes
-✗ Organizer information
-✗ Internal financial details
-```
-
-The LWC/Screen Flow can show only what the attendee is supposed to see.
-
----
-
-# 13. Event ownership
-
-I'd also introduce an **Event Organizer** relationship.
-
-For example:
-
-```text
-Event: AI Summit 2026
-Organizer: Rahul
-Manager: Priya
-```
-
-Then:
-
-```text
-Organizer Rahul
-       ↓
-Can manage
-       ↓
-AI Summit 2026
-```
-
-But another organizer shouldn't automatically be able to modify Rahul's event.
-
-That's where **OWD + Role Hierarchy + Sharing** becomes useful.
-
----
-
-# 16. Event Status becomes important
-
-I'd suggest these statuses:
-
-```text
-Draft
-Pending Approval
-Approved
-Published
-Registration Open
-Registration Closed
-Event Completed
-Cancelled
-Rejected
-```
-
-But **we don't necessarily need all of these**. We can simplify them once we design the Event object.
-
-The critical distinction is:
-
-```text
-Draft
-   ↓
-Pending Approval
-   ↓
-Approved
-   ↓
-Published
-   ↓
-Registration Open
-   ↓
-Registration Closed
-   ↓
-Completed
-```
-
-This will make our attendee LWC much easier:
-
-> Only show events that are actually available for registration.
-
----
-
-# 1. profiles
-
-## 1.1 Registration Team
-
-### Main responsibility
-
-The Registration Team handles the operational side of attendee registrations.
-
-They are not event creators, not finance people, and not system admins.
-
-### They can SEE
-
-Attendee records
-Events
-Published events
-Registrations
-Tickets
-Ticket Types
-Available seats
-Registration status
-Attendance information
-
-### They can CREATE
-
-Attendee records, when assisting someone
-Registration records, if a booking needs to be made on behalf of an attendee
-Ticket-related records only where the business process requires it
-
-But normally, the automated booking process should create the Registration/Ticket rather than the Registration Team manually creating them.
-
-### They can EDIT
-
-Registration-related information such as:
-Registration status
-Attendee details when correction is needed
-Check-in/attendance status
-Operational notes
-
-### They CANNOT
-
-Create or approve event budgets
-Modify event budget
-Modify payment amounts/status
-Change ticket prices
-Change ticket quotas
-Change available seats manually
-Manage speakers
-Modify security settings
-Important
-
-The Registration Team should be able to see registrations for events they are responsible for, rather than automatically seeing every private registration in the entire organization.
-
-## 1.2 Finance
-
-### Main responsibility
-
-Finance handles payments and financial information.
-The original project explicitly includes Payment and requires reporting around revenue.
-
-### They can SEE
-
-Payment records
-Payment status
-Payment amount
-Payment/reference information
-Associated Registration
-Associated Ticket
-Associated Event
-Event revenue
-Financial reports
-
-### They can CREATE
-
-Payment records when required by the business process
-Payment-related records
-
-### They can EDIT
-
-Finance-specific information such as:
-Payment status
-Transaction/reference ID
-Payment verification information
-Refund/payment remarks, if we decide to include them
-
-### They CANNOT
-
-Change Event capacity
-Change Ticket Type quota
-Change Ticket Type price
-Modify attendee registrations
-Create/edit speakers
-Publish events
-Approve their own financial/event requests
-Manage Salesforce configuration
-
-### Finance + Organizer relationship
-
-The Organizer can see something like:
-Event Revenue
-₹7,50,000
-But Finance manages the underlying payment information.
-So:
-ORGANIZER
-↓
-View event revenue/statistics
-
-FINANCE
-↓
-Manage payment records
-
-## 1.3 Speaker Coordinator
-
-### Main responsibility
-
-Everything related to speakers and their association with events.
-The original project explicitly includes Speaker as a main object.
-
-### They can SEE
-
-Speaker records
-Event records
-Relevant event details
-Speaker-event assignments
-Speaker schedule/details
-
-### They can CREATE
-
-Speaker records
-Speaker-event associations
-
-### They can EDIT
-
-Speaker information
-Speaker contact/professional details
-Speaker-event assignments
-Speaker-related notes
-
-### They CANNOT
-
-Create or approve event budgets
-Manage payments
-Modify registrations
-Change ticket prices
-Change ticket quotas
-Modify event budgets
-Approve event budgets
-Modify attendee information unnecessarily
-Publish/cancel events unless we explicitly give that permission later
-
-## 1.4 Admin
-
-have all the power bro
-
-### Admin can:
-
-Create/edit/delete all relevant records
-Manage users
-Manage profiles/permissions
-Manage sharing
-Manage objects/fields
-Manage Flows
-Manage Approval Processes
-Manage Apex
-Manage Visualforce
-Manage LWCs
-Manage Reports/Dashboards
-View all events
-View all registrations
-View all tickets
-View all payments
-View all speakers
-View all feedback
-
-## Final role structure
-
-                         ADMIN
-                           │
-             ┌─────────────┼─────────────┐
-             │             │             │
-             ▼             ▼             ▼
-        EVENT MANAGER   ORGANIZER     FINANCE
-             │             │
-             │             │
-             │             └───────┐
-             │                     │
-             ▼                     ▼
-       Approval Process       Event Management
-                                   │
-                   ┌───────────────┼───────────────┐
-                   ▼               ▼               ▼
-            REGISTRATION       SPEAKER          ATTENDEE
-               TEAM           COORDINATOR
-
-## Final permission overview
-
-| Capability            | Attendee |  Organizer |      Manager | Registration | Finance | Speaker Coord. | Admin |
-| --------------------- | -------: | ---------: | -----------: | -----------: | ------: | -------------: | ----: |
-| View published events |       ✅ |         ✅ |           ✅ |           ✅ |      ✅ |             ✅ |    ✅ |
-| Book registration     |       ✅ |          — |            — |           ✅ |      ❌ |             ❌ |    ✅ |
-| Manage registrations  |      Own |   Assigned |     Relevant |           ✅ |      ❌ |             ❌ |    ✅ |
-| Create events         |       ❌ |         ✅ |           ✅ |           ❌ |      ❌ |             ❌ |    ✅ |
-| Manage events         |       ❌ |        Own | All relevant |           ❌ |      ❌ |   Limited view |    ✅ |
-| Manage ticket types   |       ❌ |         ✅ |           ✅ |           ❌ |      ❌ |             ❌ |    ✅ |
-| Manage ticket quotas  |       ❌ |       ✅\* |           ✅ |           ❌ |      ❌ |             ❌ |    ✅ |
-| View revenue          |       ❌ | Own events |           ✅ |           ❌ |      ✅ |             ❌ |    ✅ |
-| Manage payments       |       ❌ |         ❌ |           ❌ |           ❌ |      ✅ |             ❌ |    ✅ |
-| Manage speakers       |       ❌ |       View |         View |           ❌ |      ❌ |             ✅ |    ✅ |
-| Approve event budget  |       ❌ |         ❌ |           ✅ |           ❌ |      ❌ |             ❌ |    ✅ |
-| View feedback         |      Own | Own events |           ✅ |  Operational |      ❌ |             ❌ |    ✅ |
-| Manage security       |       ❌ |         ❌ |           ❌ |           ❌ |      ❌ |             ❌ |    ✅ |
-
-# 2. Permission set
-
-Profiles
-
-- Permission Sets
-- Permission Set Groups
-- OWD
-- Role Hierarchy
-- Sharing Rules
-
-## Finance
-
-Finance Profile +
-Finance Permission Set +
-Financial Reports Permission Set
-
-## Registration Team
-
-Registration Profile +
-Registration Management Permission Set
-
-## Organizer
-
-Organizer Profile +
-Event Management Permission Set +
-Event Dashboard Permission Set
+## 8. Viva Q&A Cheat Sheet (Security & Permissions)
+
+### Q1: "What is the difference between Role Hierarchy and Profiles?"
+> **Answer:**  
+> *"Profiles determine **what actions** a user can perform on an object (Create, Read, Edit, Delete, View All, Modify All) and which fields they can see (FLS).  
+> Role Hierarchy determines **which records** a user can view and edit based on who owns the record. It opens up record visibility vertically upwards in the hierarchy for records with Private or Public Read-Only OWD."*
+
+### Q2: "Why did you use Permission Sets instead of giving permissions on Profiles?"
+> **Answer:**  
+> *"Sir, Salesforce is retiring permissions on profiles in favor of Permission Sets. Following modern Salesforce best practices, we kept profiles minimal and used Permission Sets to grant functional permissions. This allows modular assignment—for example, an Organizer who also handles finance tasks can be assigned `Event_Organizer_Permissions` and `Event_Finance_Permissions` without needing a new profile."*
+
+### Q3: "What happens if a field is hidden via FLS, but is displayed in an LWC?"
+> **Answer:**  
+> *"If the Apex controller or UI API enforces FLS (e.g. through `WITH USER_MODE` or `Schema.sObjectType...isAccessible()`), the field value will be stripped or nullified before being rendered in the LWC. If Apex runs in `without sharing` or system mode without checks, it queries the field, which is why explicit controller checks are vital."*
+
+### Q4: "Can an Event Organizer see events created by another Event Organizer?"
+> **Answer:**  
+> *"No, Sir. Because the OWD for `Event__c` is set to **Private**, and Organizers sit at the same peer level in the Role Hierarchy. Neither organizer reports to the other. Therefore, they only see events where they are the designated record Owner. Only the Event Manager above them sees both."*
+
+### Q5: "Why did you add `<customMetadataTypeAccesses>` in Permission Sets?"
+> **Answer:**  
+> *"In modern Salesforce orgs, non-admin users cannot query Custom Metadata records unless explicit access is granted via Profiles or Permission Sets. Since our dynamic approval thresholds and payment gateway configuration reside in Custom Metadata (`Approval_Matrix__mdt` and `Payment_Gateway_Config__mdt`), we granted explicit access in our permission sets so that organizers and attendees can access them smoothly without requiring administrator privileges."*
