@@ -253,4 +253,10 @@
         <apexPage>PrintableTicket</apexPage>
         <enabled>true</enabled>
     </pageAccesses>
+
+    <!-- Custom Metadata Type Accesses -->
+    <customMetadataTypeAccesses>
+        <enabled>true</enabled>
+        <name>Payment_Gateway_Config__mdt</name>
+    </customMetadataTypeAccesses>
 </PermissionSet>

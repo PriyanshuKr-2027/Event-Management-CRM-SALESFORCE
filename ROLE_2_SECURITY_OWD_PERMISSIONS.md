@@ -107,34 +107,40 @@ Salesforce uses Role Hierarchy to **open up record access vertically** above the
 ## 4. Profiles vs. Permission Sets Design
 
 ### The Modern Salesforce Best Practice:
-Instead of creating 5 heavy custom profiles with hard-to-maintain permissions, we used:
+Instead of creating heavy custom profiles with hard-to-maintain permissions, we used:
 - **Base Profile:** Standard User / Minimum Access Profile.
-- **5 Modular Permission Sets:** Assigned according to business responsibility.
+- **6 Modular Permission Sets:** Assigned according to business responsibility.
 - **1 Permission Set Group (`Event_Management_Core_Access`):** Bundles common operational permissions.
 
 ### Permission Sets Implemented:
 
 #### 1. `Event_Manager_Permissions` (`permissionsets/Event_Manager_Permissions.permissionset-meta.xml`)
 - **OLS:** View All & Modify All on `Event__c`, `Venue__c`, `Speaker__c`, `Attendee__c`, `Registration__c`, `Payment__c`, `Feedback__c`.
-- **Apex Access:** `OrganizerDashboardController`, `EventBookingController`, `PrintableTicketExtension`.
+- **FLS:** Read/Edit on `Proposed_Budget__c`, `Total_Budget__c`, `Approval_Status__c`, `Approved_By__c`, `Payment__c.Transaction_Id__c`.
+- **Custom Metadata Access:** `Approval_Matrix__mdt`, `Approval_Settings__mdt`, `Payment_Gateway_Config__mdt`.
+- **Apex Access:** `OrganizerDashboardController`, `EventBookingController`, `PrintableTicketExtension`, `EventApprovalService`, `PaymentGatewayService`.
 - **Visualforce Access:** `PrintableTicket`.
 - **Tabs:** `Event_Dashboard`, `Event_Executive_Dashboard`, `Venue__c`, `Speaker__c`, `Attendee__c`, `Registration__c`.
 
 #### 2. `Event_Organizer_Permissions` (`permissionsets/Event_Organizer_Permissions.permissionset-meta.xml`)
 - **OLS:** Full CRUD on `Event__c`, `Ticket_Type__c`, `Registration__c`, `Attendee__c`, `Feedback__c`; Read-only on `Venue__c`.
-- **Apex Access:** `OrganizerDashboardController`, `PrintableTicketExtension`.
+- **FLS:** Read/Edit on `Proposed_Budget__c`, `Total_Budget__c`; Read-only on `Approved_By__c`, `Approval_Status__c`.
+- **Custom Metadata Access:** `Approval_Matrix__mdt`, `Approval_Settings__mdt`, `Payment_Gateway_Config__mdt`.
+- **Apex Access:** `OrganizerDashboardController`, `PrintableTicketExtension`, `EventApprovalService`.
 - **Visualforce Access:** `PrintableTicket`.
 - **Tabs:** `Event_Dashboard`, `Venue__c`, `Speaker__c`, `Attendee__c`, `Registration__c`.
 
 #### 3. `Event_Registration_Team_Permissions` (`permissionsets/Event_Registration_Team_Permissions.permissionset-meta.xml`)
 - **OLS:** Create, Read, Edit on `Attendee__c`, `Registration__c`, `Ticket__c`; Read on `Event__c` and `Ticket_Type__c`.
 - **FLS:** Access to `Attendee__c.Email__c`, `Phone__c`, `Company__c`, `Registration_Date__c`, `Status__c`, `Ticket_Type__c`.
+- **Custom Metadata Access:** `Payment_Gateway_Config__mdt`.
 - **Apex Access:** `EventBookingController`, `PrintableTicketExtension`.
 - **Visualforce Access:** `PrintableTicket`.
 
 #### 4. `Event_Finance_Permissions` (`permissionsets/Event_Finance_Permissions.permissionset-meta.xml`)
 - **OLS:** Read & Edit on `Payment__c`, Read on `Event__c`, `Registration__c`, `Ticket_Type__c`.
-- **FLS:** Read/Edit on `Payment__c.Transaction_Id__c`, `Payment_Status__c`, `Payment_Method__c`, `Payment_Date__c`, `Total_Amount__c`, `Discount_Code__c`.
+- **FLS:** Read/Edit on `Payment__c.Transaction_Id__c`, `Payment_Status__c`, `Payment_Method__c`, `Payment_Date__c`, `Total_Amount__c`, `Discount_Code__c`; Read-only on `Event__c.Proposed_Budget__c`, `Approved_By__c`.
+- **Custom Metadata Access:** `Approval_Matrix__mdt`, `Payment_Gateway_Config__mdt`.
 - **Tabs:** `Registration__c`.
 
 #### 5. `Event_Speaker_Coordinator_Permissions` (`permissionsets/Event_Speaker_Coordinator_Permissions.permissionset-meta.xml`)
@@ -142,40 +148,69 @@ Instead of creating 5 heavy custom profiles with hard-to-maintain permissions, w
 - **FLS:** `Speaker__c.Bio__c`, `Email__c`, `Phone__c`, `Expertise__c`, `Social_Profile__c`.
 - **Tabs:** `Speaker__c`, `Venue__c`.
 
+#### 6. `Event_Attendee_Permissions` (`permissionsets/Event_Attendee_Permissions.permissionset-meta.xml`)
+- **OLS:** Create & Edit on `Attendee__c`, `Registration__c`, `Payment__c`, `Feedback__c`; Read-only on published `Event__c`, `Venue__c`, `Ticket_Type__c`.
+- **FLS:** Access to self-service booking fields, feedback rating, and payment submission details.
+- **Custom Metadata Access:** `Payment_Gateway_Config__mdt` (to retrieve merchant VPA, gateway name, and sandbox currency).
+
 ---
 
 ## 5. Field-Level Security (FLS) Matrix
 
 FLS ensures that users can only see and edit fields relevant to their job, preventing unauthorized visibility of financial or confidential information.
 
-| Object | Field Name | Manager | Organizer | Finance | Reg Team | Speaker Coord |
-| :--- | :--- | :---: | :---: | :---: | :---: | :---: |
-| **`Event__c`** | `Total_Budget__c` | Read/Edit | Read/Edit | Read Only | No Access | No Access |
-| **`Event__c`** | `Total_Revenue__c` | Read Only (Formula/Rollup) | Read Only | Read Only | No Access | No Access |
-| **`Event__c`** | `Approval_Status__c` | Read/Edit | Read Only | Read Only | Read Only | Read Only |
-| **`Attendee__c`** | `Email__c` / `Phone__c` | Read/Edit | Read/Edit | Read Only | Read/Edit | No Access |
-| **`Registration__c`** | `Discount_Code__c` | Read/Edit | Read/Edit | Read Only | Read/Edit | No Access |
-| **`Payment__c`** | `Transaction_Id__c` | Read/Edit | Read Only | Read/Edit | Read Only | No Access |
-| **`Payment__c`** | `Payment_Status__c` | Read/Edit | Read Only | Read/Edit | Read Only | No Access |
-| **`Speaker__c`** | `Email__c` / `Bio__c` | Read/Edit | Read/Edit | No Access | No Access | Read/Edit |
+| Object | Field Name | Manager | Organizer | Finance | Reg Team | Speaker Coord | Attendee |
+| :--- | :--- | :---: | :---: | :---: | :---: | :---: | :---: |
+| **`Event__c`** | `Proposed_Budget__c` | **Read/Edit** | **Read/Edit** | **Read Only** | No Access | No Access | No Access |
+| **`Event__c`** | `Total_Budget__c` | Read/Edit | Read/Edit | Read Only | No Access | No Access | No Access |
+| **`Event__c`** | `Approved_By__c` | Read/Edit | Read Only | Read Only | No Access | No Access | No Access |
+| **`Event__c`** | `Approval_Status__c` | Read/Edit | Read Only | Read Only | Read Only | Read Only | Read Only |
+| **`Event__c`** | `Total_Revenue__c` | Read Only (Rollup) | Read Only | Read Only | No Access | No Access | No Access |
+| **`Attendee__c`** | `Email__c` / `Phone__c` | Read/Edit | Read/Edit | Read Only | Read/Edit | No Access | Read/Edit |
+| **`Registration__c`** | `Discount_Code__c` | Read/Edit | Read/Edit | Read Only | Read/Edit | No Access | Read/Edit |
+| **`Payment__c`** | `Transaction_Id__c` | Read/Edit | Read Only | Read/Edit | Read Only | No Access | Read Only |
+| **`Payment__c`** | `Payment_Status__c` | Read/Edit | Read Only | Read/Edit | Read Only | No Access | Read Only |
+| **`Speaker__c`** | `Email__c` / `Bio__c` | Read/Edit | Read/Edit | No Access | No Access | Read/Edit | No Access |
 
-> **Special Note on Universal Required Fields:**  
-> In Salesforce metadata, fields marked as Master-Detail (`Payment__c.Registration__c`) or Universally Required (`Payment__c.Amount__c`, `Feedback__c.Overall_Rating__c`) cannot be restricted via `<fieldPermissions>` in permission set XML because Salesforce requires all users who have access to the object to have read/edit on required fields.
+> **Special Architectural Rule on Universally Required Fields:**  
+> In Salesforce metadata, fields defined with `<required>true</required>` (e.g., `Event__c.Category__c`, `Event__c.Venue__c`, `Event__c.Start_Date_Time__c`, `Event__c.End_Date_Time__c`) or Master-Detail relationship fields (`Payment__c.Registration__c`) **cannot** be explicitly listed under `<fieldPermissions>` in permission set XML files.  
+> If an administrator tries to declare them in permission sets, Salesforce rejects the deployment with:  
+> `Cannot specify field permissions for universally required field`.  
+> In Salesforce, access to universally required fields is automatically inherited whenever a user has Object-Level Security (OLS) on that object.
 
 ---
 
-## 6. Sharing Enforcement in Apex Code (`with sharing` vs `without sharing`)
+## 6. Custom Metadata Type Security (`<customMetadataTypeAccesses>`)
+
+In modern Salesforce releases (Spring '20 onwards), Salesforce enforces the critical org-wide security setting:  
+**"Require Customize Application permission for direct read access to custom metadata types"**.
+
+When this setting is enabled, standard/non-admin users **cannot query Custom Metadata records** via SOQL or Apex unless explicit access is granted on their Profile or Permission Set.
+
+| Custom Metadata Type | Description | Granted To | Justification |
+| :--- | :--- | :--- | :--- |
+| **`Approval_Matrix__mdt`** | Multi-Tier dynamic budget approval thresholds per category | `Event_Manager_Permissions`<br>`Event_Organizer_Permissions`<br>`Event_Finance_Permissions` | Organizers submit events against thresholds; Managers and Finance review category-specific approval rules. |
+| **`Approval_Settings__mdt`** | Global approval rules & flags | `Event_Manager_Permissions`<br>`Event_Organizer_Permissions` | Checked by `EventApprovalService` to determine whether approval routing is globally active. |
+| **`Payment_Gateway_Config__mdt`**| UPI VPA, Merchant Name, Sandbox credentials | `Event_Manager_Permissions`<br>`Event_Organizer_Permissions`<br>`Event_Finance_Permissions`<br>`Event_Attendee_Permissions`<br>`Event_Registration_Team_Permissions` | Attendees and Registration staff need to render dynamic UPI QR codes and retrieve active merchant configuration. |
+
+---
+
+## 7. Sharing Enforcement in Apex Code (`with sharing` vs `without sharing`)
 
 A critical security question in any project review is how programmatic code respects or bypasses sharing settings:
 
 1. **`OrganizerDashboardController.cls` -> `public with sharing class`**:
    - **Why?** Enforces record-level security. When an Organizer logs in, the SOQL query automatically scopes to records they own or have explicit sharing access to. When an Event Manager logs in, Role Hierarchy automatically allows them to see all records.
-2. **`EventBookingController.cls` -> `public without sharing class`**:
+2. **`EventApprovalService.cls` -> `public with sharing class`**:
+   - **Why?** Ensures that only users who have permission to view or edit the `Event__c` record can evaluate its approval status or submit it for review.
+3. **`PaymentGatewayService.cls` -> `public with sharing class`**:
+   - **Why?** Adheres to least privilege when reading payment metadata and generating secure cryptographic webhook HMAC signatures.
+4. **`EventBookingController.cls` -> `public without sharing class`**:
    - **Why?** Attendees booking tickets through the public or guest portal do not own the `Event__c`, `Ticket_Type__c`, or `Registration__c` records. If `with sharing` were used, guest users would receive an authorization fault when attempting to query remaining capacity or create registration records. The controller uses strict input validation and server-side verification to maintain data integrity safely.
 
 ---
 
-## 7. Viva Q&A Cheat Sheet (Security & Permissions)
+## 8. Viva Q&A Cheat Sheet (Security & Permissions)
 
 ### Q1: "What is the difference between Role Hierarchy and Profiles?"
 > **Answer:**  
@@ -184,7 +219,7 @@ A critical security question in any project review is how programmatic code resp
 
 ### Q2: "Why did you use Permission Sets instead of giving permissions on Profiles?"
 > **Answer:**  
-> *"Sir, Salesforce is moving away from profile-based permissions. Following modern Salesforce best practices, we kept profiles minimal and used Permission Sets to grant functional permissions. This allows modular assignment—for example, an Organizer who also handles finance tasks can be assigned `Event_Organizer_Permissions` and `Event_Finance_Permissions` without needing a new profile."*
+> *"Sir, Salesforce is retiring permissions on profiles in favor of Permission Sets. Following modern Salesforce best practices, we kept profiles minimal and used Permission Sets to grant functional permissions. This allows modular assignment—for example, an Organizer who also handles finance tasks can be assigned `Event_Organizer_Permissions` and `Event_Finance_Permissions` without needing a new profile."*
 
 ### Q3: "What happens if a field is hidden via FLS, but is displayed in an LWC?"
 > **Answer:**  
@@ -194,6 +229,10 @@ A critical security question in any project review is how programmatic code resp
 > **Answer:**  
 > *"No, Sir. Because the OWD for `Event__c` is set to **Private**, and Organizers sit at the same peer level in the Role Hierarchy. Neither organizer reports to the other. Therefore, they only see events where they are the designated record Owner. Only the Event Manager above them sees both."*
 
-### Q5: "What is a Permission Set Group and what is its benefit?"
+### Q5: "Why did you add `<customMetadataTypeAccesses>` in Permission Sets?"
 > **Answer:**  
-> *"A Permission Set Group bundles multiple individual permission sets together into a single assignable package. It simplifies user provisioning and administration. For instance, our `Event_Management_Core_Access` group allows us to grant baseline event access in one single click."*
+> *"In modern Salesforce orgs, non-admin users cannot query Custom Metadata records unless explicit access is granted via Profiles or Permission Sets. Since our dynamic approval thresholds and payment gateway configuration reside in Custom Metadata (`Approval_Matrix__mdt` and `Payment_Gateway_Config__mdt`), we granted explicit access in our permission sets so that organizers and attendees can access them smoothly without requiring administrator privileges."*
+
+### Q6: "Why is `Ticket_Type__c` OWD set to 'Controlled by Parent' instead of 'Private'?"
+> **Answer:**  
+> *"Sir, `Ticket_Type__c` is the child object in a Master-Detail relationship with `Event__c`. In Salesforce, detail objects cannot have their own independent OWD; their sharing and record visibility are strictly inherited from the Master object (`Event__c`)."*

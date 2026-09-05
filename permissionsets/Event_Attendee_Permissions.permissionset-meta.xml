@@ -275,4 +275,10 @@
         <application>Event_Management</application>
         <visible>true</visible>
     </applicationVisibilities>
+
+    <!-- Custom Metadata Type Accesses -->
+    <customMetadataTypeAccesses>
+        <enabled>true</enabled>
+        <name>Payment_Gateway_Config__mdt</name>
+    </customMetadataTypeAccesses>
 </PermissionSet>

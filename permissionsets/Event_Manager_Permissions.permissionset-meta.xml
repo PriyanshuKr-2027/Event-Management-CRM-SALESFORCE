@@ -182,6 +182,11 @@
     </fieldPermissions>
     <fieldPermissions>
         <editable>true</editable>
+        <field>Event__c.Proposed_Budget__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>true</editable>
         <field>Event__c.Approved_By__c</field>
         <readable>true</readable>
     </fieldPermissions>
@@ -301,4 +306,18 @@
         <apexPage>PrintableTicket</apexPage>
         <enabled>true</enabled>
     </pageAccesses>
+
+    <!-- Custom Metadata Type Accesses -->
+    <customMetadataTypeAccesses>
+        <enabled>true</enabled>
+        <name>Approval_Matrix__mdt</name>
+    </customMetadataTypeAccesses>
+    <customMetadataTypeAccesses>
+        <enabled>true</enabled>
+        <name>Approval_Settings__mdt</name>
+    </customMetadataTypeAccesses>
+    <customMetadataTypeAccesses>
+        <enabled>true</enabled>
+        <name>Payment_Gateway_Config__mdt</name>
+    </customMetadataTypeAccesses>
 </PermissionSet>
