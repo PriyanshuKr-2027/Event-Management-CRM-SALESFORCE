@@ -42,6 +42,9 @@
         <connector>
             <targetReference>Set_PendingApproval_Outcome</targetReference>
         </connector>
+        <faultConnector>
+            <targetReference>Creation_Failed_Screen</targetReference>
+        </faultConnector>
         <inputParameters>
             <name>objectId</name>
             <value>
@@ -361,10 +364,13 @@
         <label>Get Approval Threshold</label>
         <locationX>176</locationX>
         <locationY>1514</locationY>
-        <assignNullValuesIfNoRecordsFound>false</assignNullValuesIfNoRecordsFound>
+        <assignNullValuesIfNoRecordsFound>true</assignNullValuesIfNoRecordsFound>
         <connector>
             <targetReference>Budget_Exceeds_Threshold</targetReference>
         </connector>
+        <faultConnector>
+            <targetReference>Creation_Failed_Screen</targetReference>
+        </faultConnector>
         <filterLogic>and</filterLogic>
         <filters>
             <field>DeveloperName</field>
@@ -387,6 +393,9 @@
         <connector>
             <targetReference>Get_Approval_Threshold</targetReference>
         </connector>
+        <faultConnector>
+            <targetReference>Creation_Failed_Screen</targetReference>
+        </faultConnector>
         <filterLogic>and</filterLogic>
         <filters>
             <field>Id</field>
@@ -404,7 +413,7 @@
         <inputAssignments>
             <field>Status__c</field>
             <value>
-                <stringValue>Confirmed</stringValue>
+                <stringValue>Active</stringValue>
             </value>
         </inputAssignments>
         <object>Speaker__c</object>
@@ -417,6 +426,9 @@
         <connector>
             <targetReference>Set_AutoApproved_Outcome</targetReference>
         </connector>
+        <faultConnector>
+            <targetReference>Creation_Failed_Screen</targetReference>
+        </faultConnector>
         <filterLogic>and</filterLogic>
         <filters>
             <field>Id</field>
@@ -461,8 +473,13 @@
             <name>Category</name>
             <choiceReferences>Category_Conference</choiceReferences>
             <choiceReferences>Category_Workshop</choiceReferences>
+            <choiceReferences>Category_Training</choiceReferences>
+            <choiceReferences>Category_Hackathon</choiceReferences>
+            <choiceReferences>Category_Concert</choiceReferences>
+            <choiceReferences>Category_Executive_Summit</choiceReferences>
             <choiceReferences>Category_Webinar</choiceReferences>
             <choiceReferences>Category_Meetup</choiceReferences>
+            <choiceReferences>Category_Other</choiceReferences>
             <dataType>String</dataType>
             <fieldText>Category</fieldText>
             <fieldType>DropdownBox</fieldType>
@@ -791,6 +808,38 @@
         </value>
     </choices>
     <choices>
+        <name>Category_Training</name>
+        <choiceText>Training</choiceText>
+        <dataType>String</dataType>
+        <value>
+            <stringValue>Training</stringValue>
+        </value>
+    </choices>
+    <choices>
+        <name>Category_Hackathon</name>
+        <choiceText>Hackathon</choiceText>
+        <dataType>String</dataType>
+        <value>
+            <stringValue>Hackathon</stringValue>
+        </value>
+    </choices>
+    <choices>
+        <name>Category_Concert</name>
+        <choiceText>Concert</choiceText>
+        <dataType>String</dataType>
+        <value>
+            <stringValue>Concert</stringValue>
+        </value>
+    </choices>
+    <choices>
+        <name>Category_Executive_Summit</name>
+        <choiceText>Executive Summit</choiceText>
+        <dataType>String</dataType>
+        <value>
+            <stringValue>Executive Summit</stringValue>
+        </value>
+    </choices>
+    <choices>
         <name>Category_Webinar</name>
         <choiceText>Webinar</choiceText>
         <dataType>String</dataType>
@@ -804,6 +853,14 @@
         <dataType>String</dataType>
         <value>
             <stringValue>Meetup</stringValue>
+        </value>
+    </choices>
+    <choices>
+        <name>Category_Other</name>
+        <choiceText>Other</choiceText>
+        <dataType>String</dataType>
+        <value>
+            <stringValue>Other</stringValue>
         </value>
     </choices>
     <choices>

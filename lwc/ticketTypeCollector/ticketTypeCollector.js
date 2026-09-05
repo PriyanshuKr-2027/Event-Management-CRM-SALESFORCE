@@ -35,9 +35,26 @@ export default class TicketTypeCollector extends LightningElement {
     }
 
     set ticketTypes(value) {
-        // Lets Flow pre-populate the component (e.g. navigating Back to this
-        // screen after Review) without losing row identity for the template.
-        this._ticketTypes = (value || []).map((tt) => ({ ...tt, key: this.nextKey() }));
+        if (!value || !Array.isArray(value)) {
+            return;
+        }
+        // Guard against feedback loop from FlowAttributeChangeEvent.
+        // If incoming value has identical content to our internal state, don't recreate objects/keys.
+        const current = this.ticketTypes;
+        if (JSON.stringify(current) === JSON.stringify(value)) {
+            return;
+        }
+        // Pre-populate preserving existing keys whenever possible to avoid DOM re-renders
+        this._ticketTypes = value.map((tt, index) => {
+            const existingKey = this._ticketTypes[index] ? this._ticketTypes[index].key : this.nextKey();
+            return {
+                key: existingKey,
+                name: tt.name || '',
+                price: tt.price !== undefined && tt.price !== null ? tt.price : null,
+                quota: tt.quota !== undefined && tt.quota !== null ? tt.quota : null,
+                description: tt.description || ''
+            };
+        });
     }
 
     // ---- Derived display state ---------------------------------------------
@@ -83,11 +100,17 @@ export default class TicketTypeCollector extends LightningElement {
     handleFieldChange(event) {
         const key = event.currentTarget.dataset.key;
         const field = event.currentTarget.dataset.field;
-        const value = event.target.value;
-        this._ticketTypes = this._ticketTypes.map((tt) =>
-            tt.key === key ? { ...tt, [field]: value } : tt
-        );
-        this.notifyFlow();
+        let value = event.target.value;
+
+        if (field === 'price' || field === 'quota') {
+            value = value === '' || value === null || isNaN(value) ? null : Number(value);
+        }
+
+        const target = this._ticketTypes.find((tt) => tt.key === key);
+        if (target) {
+            target[field] = value;
+            this.notifyFlow();
+        }
     }
 
     // Keeps Flow's bound variables live-updated on every edit, not just on

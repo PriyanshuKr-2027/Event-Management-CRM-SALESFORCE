@@ -29,7 +29,8 @@
         <allowDelegate>true</allowDelegate>
         <assignedApprover>
             <approver>
-                <type>adhoc</type>
+                <name>manager.00ddl00000ytfu9uao.demo@evmos.com</name>
+                <type>user</type>
             </approver>
             <whenMultipleApprovers>FirstResponse</whenMultipleApprovers>
         </assignedApprover>
