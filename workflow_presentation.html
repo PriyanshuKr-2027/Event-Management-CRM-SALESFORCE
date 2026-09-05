@@ -1,0 +1,1018 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Event Management CRM — Master Architecture & Workflow Presentation</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-dark: #0b0f19;
+      --bg-card: rgba(18, 24, 38, 0.85);
+      --bg-card-hover: rgba(28, 38, 58, 0.95);
+      --border-subtle: rgba(255, 255, 255, 0.08);
+      --border-glow: rgba(56, 189, 248, 0.3);
+      
+      --primary: #38bdf8;
+      --primary-glow: rgba(56, 189, 248, 0.25);
+      --accent-purple: #a855f7;
+      --accent-emerald: #10b981;
+      --accent-amber: #f59e0b;
+      --accent-rose: #f43f5e;
+      --accent-indigo: #6366f1;
+      
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+      --text-dim: #64748b;
+      
+      --shadow-lg: 0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.5);
+      --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+      --font-mono: 'JetBrains Mono', monospace;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--bg-dark);
+      background-image: 
+        radial-gradient(at 0% 0%, rgba(56, 189, 248, 0.12) 0px, transparent 50%),
+        radial-gradient(at 100% 0%, rgba(168, 85, 247, 0.12) 0px, transparent 50%),
+        radial-gradient(at 50% 100%, rgba(16, 185, 129, 0.08) 0px, transparent 50%);
+      color: var(--text-main);
+      font-family: var(--font-sans);
+      min-height: 100vh;
+      overflow-x: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Top Navigation Header */
+    header {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      backdrop-filter: blur(16px);
+      background: rgba(11, 15, 25, 0.85);
+      border-bottom: 1px solid var(--border-subtle);
+      padding: 14px 28px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .logo-badge {
+      width: 40px;
+      height: 40px;
+      border-radius: 10px;
+      background: linear-gradient(135deg, #0284c7, #8b5cf6);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 800;
+      font-size: 1.25rem;
+      box-shadow: 0 0 20px rgba(56, 189, 248, 0.4);
+    }
+
+    .brand-text h1 {
+      font-size: 1.15rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      background: linear-gradient(90deg, #fff, #94a3b8);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .brand-text p {
+      font-size: 0.75rem;
+      color: var(--primary);
+      font-family: var(--font-mono);
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+    }
+
+    /* Controls Bar */
+    .controls {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .persona-filter {
+      display: flex;
+      background: rgba(255, 255, 255, 0.04);
+      padding: 4px;
+      border-radius: 10px;
+      border: 1px solid var(--border-subtle);
+      gap: 4px;
+    }
+
+    .filter-btn {
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      padding: 6px 14px;
+      border-radius: 6px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      font-family: var(--font-sans);
+    }
+
+    .filter-btn:hover {
+      color: var(--text-main);
+      background: rgba(255, 255, 255, 0.06);
+    }
+
+    .filter-btn.active {
+      background: var(--primary);
+      color: #0b0f19;
+      box-shadow: 0 0 14px var(--primary-glow);
+    }
+
+    .action-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid var(--border-subtle);
+      color: var(--text-main);
+      padding: 8px 16px;
+      border-radius: 8px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .action-btn:hover {
+      background: rgba(255, 255, 255, 0.12);
+      border-color: rgba(255, 255, 255, 0.2);
+      transform: translateY(-1px);
+    }
+
+    .action-btn.primary {
+      background: linear-gradient(135deg, #0284c7, #6366f1);
+      border: none;
+      box-shadow: 0 4px 15px rgba(2, 132, 199, 0.35);
+    }
+
+    .action-btn.primary:hover {
+      box-shadow: 0 6px 20px rgba(2, 132, 199, 0.5);
+    }
+
+    /* Main Container */
+    main {
+      flex: 1;
+      max-width: 1440px;
+      width: 100%;
+      margin: 0 auto;
+      padding: 30px 24px 60px;
+      display: flex;
+      flex-direction: column;
+      gap: 28px;
+    }
+
+    /* Presentation Tour Bar */
+    .tour-banner {
+      background: linear-gradient(90deg, rgba(2, 132, 199, 0.15), rgba(168, 85, 247, 0.15));
+      border: 1px solid var(--border-glow);
+      padding: 16px 24px;
+      border-radius: 14px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 16px;
+      box-shadow: var(--shadow-lg);
+    }
+
+    .tour-info h2 {
+      font-size: 1.1rem;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .tour-info p {
+      font-size: 0.875rem;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+
+    .tour-nav {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .tour-badge {
+      font-family: var(--font-mono);
+      font-size: 0.8rem;
+      background: rgba(255, 255, 255, 0.1);
+      padding: 4px 10px;
+      border-radius: 6px;
+      color: var(--primary);
+    }
+
+    /* Flow Grid */
+    .flow-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 22px;
+      position: relative;
+    }
+
+    @media (max-width: 1200px) {
+      .flow-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+
+    @media (max-width: 700px) {
+      .flow-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    /* Workflow Step Card */
+    .flow-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: 16px;
+      padding: 22px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      position: relative;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      backdrop-filter: blur(12px);
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+      cursor: pointer;
+    }
+
+    .flow-card:hover {
+      transform: translateY(-4px);
+      border-color: var(--card-theme, var(--primary));
+      box-shadow: 0 12px 30px -5px rgba(0, 0, 0, 0.6), 0 0 20px var(--card-glow, var(--primary-glow));
+    }
+
+    .flow-card.active-tour-step {
+      border-color: #38bdf8 !important;
+      box-shadow: 0 0 35px rgba(56, 189, 248, 0.5) !important;
+      transform: translateY(-6px) scale(1.02);
+      background: rgba(24, 34, 54, 0.95);
+    }
+
+    .flow-card.dimmed {
+      opacity: 0.25;
+      filter: grayscale(80%);
+      transform: scale(0.98);
+    }
+
+    .card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 10px;
+    }
+
+    .step-pill {
+      font-family: var(--font-mono);
+      font-size: 0.72rem;
+      font-weight: 600;
+      padding: 4px 8px;
+      border-radius: 6px;
+      background: rgba(255, 255, 255, 0.08);
+      color: var(--card-theme, var(--primary));
+      border: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    .persona-badge {
+      font-size: 0.75rem;
+      font-weight: 700;
+      padding: 4px 10px;
+      border-radius: 20px;
+      background: var(--badge-bg, rgba(56, 189, 248, 0.15));
+      color: var(--badge-color, var(--primary));
+      border: 1px solid var(--badge-border, rgba(56, 189, 248, 0.3));
+    }
+
+    .card-title {
+      font-size: 1.15rem;
+      font-weight: 700;
+      color: #fff;
+      line-height: 1.3;
+    }
+
+    .card-desc {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      line-height: 1.5;
+    }
+
+    /* Key Items Checklist */
+    .checklist {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      padding-top: 6px;
+      border-top: 1px solid rgba(255, 255, 255, 0.06);
+    }
+
+    .checklist-item {
+      font-size: 0.8rem;
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+      color: #cbd5e1;
+      line-height: 1.4;
+    }
+
+    .checklist-item svg {
+      width: 15px;
+      height: 15px;
+      flex-shrink: 0;
+      margin-top: 2px;
+      color: var(--card-theme, var(--primary));
+    }
+
+    /* Technical Tags */
+    .tech-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: auto;
+      padding-top: 10px;
+    }
+
+    .tech-tag {
+      font-family: var(--font-mono);
+      font-size: 0.7rem;
+      background: rgba(0, 0, 0, 0.4);
+      color: #94a3b8;
+      padding: 3px 8px;
+      border-radius: 4px;
+      border: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    /* Slide-out Speaker Notes Drawer */
+    .notes-drawer {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: rgba(15, 23, 42, 0.95);
+      border-top: 1px solid var(--border-glow);
+      backdrop-filter: blur(20px);
+      padding: 20px 32px;
+      z-index: 90;
+      box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.7);
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      transform: translateY(0);
+      transition: transform 0.3s ease;
+    }
+
+    .notes-drawer.collapsed {
+      transform: translateY(calc(100% - 46px));
+    }
+
+    .drawer-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      cursor: pointer;
+    }
+
+    .drawer-title {
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: var(--primary);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .speaker-text {
+      font-size: 0.95rem;
+      color: #e2e8f0;
+      line-height: 1.6;
+      background: rgba(0, 0, 0, 0.3);
+      padding: 12px 18px;
+      border-radius: 10px;
+      border-left: 3px solid var(--primary);
+    }
+
+    .speaker-text strong {
+      color: #38bdf8;
+    }
+
+    /* Modal for Deep Dive */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.8);
+      backdrop-filter: blur(8px);
+      z-index: 200;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    .modal-overlay.active {
+      display: flex;
+    }
+
+    .modal-box {
+      background: #0f172a;
+      border: 1px solid var(--border-glow);
+      border-radius: 20px;
+      max-width: 680px;
+      width: 100%;
+      max-height: 90vh;
+      overflow-y: auto;
+      padding: 28px;
+      box-shadow: var(--shadow-lg);
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+      position: relative;
+    }
+
+    .modal-close {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      background: rgba(255, 255, 255, 0.1);
+      border: none;
+      color: #fff;
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+    }
+
+    .modal-close:hover {
+      background: var(--accent-rose);
+    }
+
+    /* Theme Overrides for specific stages */
+    .phase-admin { --card-theme: #38bdf8; --card-glow: rgba(56, 189, 248, 0.25); --badge-bg: rgba(56, 189, 248, 0.15); --badge-color: #38bdf8; --badge-border: rgba(56, 189, 248, 0.3); }
+    .phase-organizer { --card-theme: #a855f7; --card-glow: rgba(168, 85, 247, 0.25); --badge-bg: rgba(168, 85, 247, 0.15); --badge-color: #c084fc; --badge-border: rgba(168, 85, 247, 0.3); }
+    .phase-manager { --card-theme: #f59e0b; --card-glow: rgba(245, 158, 11, 0.25); --badge-bg: rgba(245, 158, 11, 0.15); --badge-color: #fbbf24; --badge-border: rgba(245, 158, 11, 0.3); }
+    .phase-attendee { --card-theme: #10b981; --card-glow: rgba(16, 185, 129, 0.25); --badge-bg: rgba(16, 185, 129, 0.15); --badge-color: #34d399; --badge-border: rgba(16, 185, 129, 0.3); }
+    .phase-payment { --card-theme: #ec4899; --card-glow: rgba(236, 72, 153, 0.25); --badge-bg: rgba(236, 72, 153, 0.15); --badge-color: #f472b6; --badge-border: rgba(236, 72, 153, 0.3); }
+    .phase-regteam { --card-theme: #06b6d4; --card-glow: rgba(6, 182, 212, 0.25); --badge-bg: rgba(6, 182, 212, 0.15); --badge-color: #22d3ee; --badge-border: rgba(6, 182, 212, 0.3); }
+    .phase-finance { --card-theme: #6366f1; --card-glow: rgba(99, 102, 241, 0.25); --badge-bg: rgba(99, 102, 241, 0.15); --badge-color: #818cf8; --badge-border: rgba(99, 102, 241, 0.3); }
+    .phase-automation { --card-theme: #14b8a6; --card-glow: rgba(20, 184, 166, 0.25); --badge-bg: rgba(20, 184, 166, 0.15); --badge-color: #2dd4bf; --badge-border: rgba(20, 184, 166, 0.3); }
+  </style>
+</head>
+<body>
+
+  <!-- Top Navigation Header -->
+  <header>
+    <div class="brand">
+      <div class="logo-badge">SF</div>
+      <div class="brand-text">
+        <h1>Event Management CRM — Master Architecture</h1>
+        <p>Interactive Viva & Project Overview Flowchart</p>
+      </div>
+    </div>
+
+    <!-- Controls -->
+    <div class="controls">
+      <div class="persona-filter">
+        <button class="filter-btn active" onclick="filterPersona('all')">All Workflows</button>
+        <button class="filter-btn" onclick="filterPersona('admin')">Admin</button>
+        <button class="filter-btn" onclick="filterPersona('organizer')">Organizer</button>
+        <button class="filter-btn" onclick="filterPersona('manager')">Manager</button>
+        <button class="filter-btn" onclick="filterPersona('attendee')">Attendee</button>
+        <button class="filter-btn" onclick="filterPersona('regteam')">Reg Desk</button>
+        <button class="filter-btn" onclick="filterPersona('finance')">Finance</button>
+      </div>
+
+      <button class="action-btn primary" id="tourToggleBtn" onclick="toggleTour()">
+        <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+        Interactive Tour Mode
+      </button>
+
+      <button class="action-btn" onclick="toggleFullscreen()">
+        <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-5h-4m4 0v4m0-4l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
+        </svg>
+      </button>
+    </div>
+  </header>
+
+  <!-- Main Canvas -->
+  <main>
+    <!-- Presentation Tour Banner -->
+    <div class="tour-banner" id="tourBanner" style="display: none;">
+      <div class="tour-info">
+        <h2 id="tourStageTitle">Step 1: Admin Governance & Custom Metadata</h2>
+        <p id="tourStageSubtitle">System Administrator configures security baselines and approval rules.</p>
+      </div>
+      <div class="tour-nav">
+        <span class="tour-badge" id="tourStepCounter">Stage 1 of 8</span>
+        <button class="action-btn" onclick="prevStep()">Previous</button>
+        <button class="action-btn primary" onclick="nextStep()">Next Stage</button>
+      </div>
+    </div>
+
+    <!-- 8 Master Architecture Cards Grid -->
+    <div class="flow-grid" id="flowGrid">
+
+      <!-- STEP 1: Admin Configuration -->
+      <div class="flow-card phase-admin" data-persona="admin" data-step="1" onclick="selectCard(1)">
+        <div class="card-header">
+          <span class="step-pill">STAGE 01</span>
+          <span class="persona-badge">System Admin</span>
+        </div>
+        <h3 class="card-title">Security Baseline & Metadata</h3>
+        <p class="card-desc">Establishes organization-wide security, role hierarchy, and configuration metadata.</p>
+        <ul class="checklist">
+          <li class="checklist-item">
+            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg>
+            <strong>OWD Setup:</strong> Event__c (Private), Venue__c (Public RO), Attendee (Private).
+          </li>
+          <li class="checklist-item">
+            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg>
+            <strong>Role Hierarchy:</strong> Manager &gt; Organizer / Finance &gt; Registration Team.
+          </li>
+          <li class="checklist-item">
+            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg>
+            <strong>Approval Matrix:</strong> Category limits via <code>Approval_Matrix__mdt</code>.
+          </li>
+          <li class="checklist-item">
+            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg>
+            <strong>Gateway Config:</strong> VPA & secrets in <code>Payment_Gateway_Config__mdt</code>.
+          </li>
+        </ul>
+        <div class="tech-tags">
+          <span class="tech-tag">OWD</span>
+          <span class="tech-tag">Permission Sets</span>
+          <span class="tech-tag">CMDT</span>
+        </div>
+      </div>
+
+      <!-- STEP 2: Event Inception -->
+      <div class="flow-card phase-organizer" data-persona="organizer" data-step="2" onclick="selectCard(2)">
+        <div class="card-header">
+          <span class="step-pill">STAGE 02</span>
+          <span class="persona-badge">Event Organizer</span>
+        </div>
+        <h3 class="card-title">Event Inception & Screen Flow</h3>
+        <p class="card-desc">Organizer designs the event, selects venue, and configures dynamic pricing tiers.</p>
+        <ul class="checklist">
+          <li class="checklist-item">
+            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg>
+            <strong>Dashboard:</strong> Launches <code>Event_Creation_Screen_Flow</code>.
+          </li>
+          <li class="checklist-item">
+            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg>
+            <strong>9 Categories:</strong> Concert, Conference, Workshop, Training, etc.
+          </li>
+          <li class="checklist-item">
+            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg>
+            <strong>Embedded LWC:</strong> <code>ticketTypeCollector</code> for dynamic VIP/General tiers.
+          </li>
+          <li class="checklist-item">
+            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg>
+            <strong>Safety Ceiling:</strong> Live check against <code>Venue_Capacity__c</code>.
+          </li>
+        </ul>
+        <div class="tech-tags">
+          <span class="tech-tag">Screen Flow</span>
+          <span class="tech-tag">ticketTypeCollector LWC</span>
+          <span class="tech-tag">Rollup Summaries</span>
+        </div>
+      </div>
+
+      <!-- STEP 3: Approval Engine -->
+      <div class="flow-card phase-manager" data-persona="manager organizer" data-step="3" onclick="selectCard(3)">
+        <div class="card-header">
+          <span class="step-pill">STAGE 03</span>
+          <span class="persona-badge">Approval Engine</span>
+        </div>
+        <h3 class="card-title">Dynamic Multi-Tier Approval</h3>
+        <p class="card-desc">Category-driven budget routing engine with auto-approval and executive escalation.</p>
+        <ul class="checklist">
+          <li class="checklist-item">
+            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg>
+            <strong>Tier 1 (Auto-Approved):</strong> Budget &le; Auto-Ceiling (e.g. Meetup &le; 50K).
+          </li>
+          <li class="checklist-item">
+            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg>
+            <strong>Tier 2 (Manager):</strong> Standard Approval Process review.
+          </li>
+          <li class="checklist-item">
+            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg>
+            <strong>Tier 3 (Finance Signoff):</strong> High-risk/high-budget escalation.
+          </li>
+          <li class="checklist-item">
+            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg>
+            <strong>Rejection Loop:</strong> Mandatory <code>Rejection_Reason__c</code> entered.
+          </li>
+        </ul>
+        <div class="tech-tags">
+          <span class="tech-tag">EventApprovalService</span>
+          <span class="tech-tag">Invocable Method</span>
+          <span class="tech-tag">Approval_Matrix__mdt</span>
+        </div>
+      </div>
+
+      <!-- STEP 4: Publication & Lockdown -->
+      <div class="flow-card phase-organizer" data-persona="organizer" data-step="4" onclick="selectCard(4)">
+        <div class="card-header">
+          <span class="step-pill">STAGE 04</span>
+          <span class="persona-badge">Event Organizer</span>
+        </div>
+        <h3 class="card-title">Publication & Price Lockdown</h3>
+        <p class="card-desc">Approved event is published; validation rules lock ticket prices and quotas.</p>
+        <ul class="checklist">
+          <li class="checklist-item">
+            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg>
+            <strong>Status Transition:</strong> <code>Publication_Status__c = Published</code>.
+          </li>
+          <li class="checklist-item">
+            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg>
+            <strong>Open Registration:</strong> <code>Registration_Status__c = Open</code>.
+          </li>
+          <li class="checklist-item">
+            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg>
+            <strong>Price Lock:</strong> <code>No_Price_Change_After_Registration_Open</code>.
+          </li>
+          <li class="checklist-item">
+            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg>
+            <strong>Quota Floor:</strong> <code>Quota_Not_Below_Booked_Seats</code>.
+          </li>
+        </ul>
+        <div class="tech-tags">
+          <span class="tech-tag">Validation Rules</span>
+          <span class="tech-tag">Inventory Lock</span>
+          <span class="tech-tag">Public State</span>
+        </div>
+      </div>
+
+      <!-- STEP 5: Attendee Booking -->
+      <div class="flow-card phase-attendee" data-persona="attendee" data-step="5" onclick="selectCard(5)">
+        <div class="card-header">
+          <span class="step-pill">STAGE 05</span>
+          <span class="persona-badge">Attendee Portal</span>
+        </div>
+        <h3 class="card-title">Discovery & Multi-Seat Booking</h3>
+        <p class="card-desc">Attendees discover events, choose multiple seats, and enter individual guest rosters.</p>
+        <ul class="checklist">
+          <li class="checklist-item">
+            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg>
+            <strong>Portal Discovery:</strong> Search by category, city, or date.
+          </li>
+          <li class="checklist-item">
+            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg>
+            <strong>Multi-Seat Counter:</strong> Selects quantity <code>[-] 2 [+]</code>.
+          </li>
+          <li class="checklist-item">
+            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg>
+            <strong>Roster Intake:</strong> Names, emails & 10-digit phones per seat.
+          </li>
+          <li class="checklist-item">
+            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg>
+            <strong>Atomic Reservation:</strong> Creates Pending regs with <code>Booking_Group_Id__c</code>.
+          </li>
+        </ul>
+        <div class="tech-tags">
+          <span class="tech-tag">FOR UPDATE Lock</span>
+          <span class="tech-tag">Multi-Seat Roster</span>
+          <span class="tech-tag">Booking_Group_Id__c</span>
+        </div>
+      </div>
+
+      <!-- STEP 6: UPI QR & Settlement -->
+      <div class="flow-card phase-payment" data-persona="attendee finance" data-step="6" onclick="selectCard(6)">
+        <div class="card-header">
+          <span class="step-pill">STAGE 06</span>
+          <span class="persona-badge">Payment Adapter</span>
+        </div>
+        <h3 class="card-title">Simulated UPI QR & Settlement</h3>
+        <p class="card-desc">Interactive dynamic UPI QR verification with countdown ring and atomic ticket issuance.</p>
+        <ul class="checklist">
+          <li class="checklist-item">
+            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg>
+            <strong>Dynamic UPI Payload:</strong> <code>upi://pay?pa=events@upi...</code>.
+          </li>
+          <li class="checklist-item">
+            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg>
+            <strong>170px SVG Ring:</strong> 10-second interactive countdown timer.
+          </li>
+          <li class="checklist-item">
+            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg>
+            <strong>Idempotency Guard:</strong> Prevents duplicate payments on double click.
+          </li>
+          <li class="checklist-item">
+            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg>
+            <strong>Atomic Issuance:</strong> Payment created &rarr; Regs Confirmed &rarr; Tickets generated.
+          </li>
+        </ul>
+        <div class="tech-tags">
+          <span class="tech-tag">PaymentGatewayService</span>
+          <span class="tech-tag">paymentQrVerification LWC</span>
+          <span class="tech-tag">Atomic DML</span>
+        </div>
+      </div>
+
+      <!-- STEP 7: Printable Ticket Pass -->
+      <div class="flow-card phase-regteam" data-persona="attendee regteam" data-step="7" onclick="selectCard(7)">
+        <div class="card-header">
+          <span class="step-pill">STAGE 07</span>
+          <span class="persona-badge">Pass & Check-In</span>
+        </div>
+        <h3 class="card-title">Printable Pass & Gate Check-In</h3>
+        <p class="card-desc">Visualforce PDF pass with barcode, attendee roster, and rapid gate check-in scanning.</p>
+        <ul class="checklist">
+          <li class="checklist-item">
+            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg>
+            <strong>Visualforce PDF:</strong> <code>PrintableTicket.page</code> pass generation.
+          </li>
+          <li class="checklist-item">
+            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg>
+            <strong>Scannable Barcode:</strong> Machine-readable code from <code>Ticket__c.Name</code>.
+          </li>
+          <li class="checklist-item">
+            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg>
+            <strong>Roster Table:</strong> Displays all co-attendees booked under the group.
+          </li>
+          <li class="checklist-item">
+            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg>
+            <strong>Gate Scan:</strong> Registration Team flips status to <code>Checked In</code>.
+          </li>
+        </ul>
+        <div class="tech-tags">
+          <span class="tech-tag">Visualforce PDF</span>
+          <span class="tech-tag">PrintableTicketExtension</span>
+          <span class="tech-tag">Gate Verification</span>
+        </div>
+      </div>
+
+      <!-- STEP 8: Reminders & Feedback -->
+      <div class="flow-card phase-automation" data-persona="attendee finance" data-step="8" onclick="selectCard(8)">
+        <div class="card-header">
+          <span class="step-pill">STAGE 08</span>
+          <span class="persona-badge">Automation & BI</span>
+        </div>
+        <h3 class="card-title">Scheduled Automation & Reviews</h3>
+        <p class="card-desc">Scheduled flows send pre-event reminders and post-event satisfaction surveys.</p>
+        <ul class="checklist">
+          <li class="checklist-item">
+            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg>
+            <strong>24-Hour Reminder:</strong> Scheduled flow sends venue directions & pass link.
+          </li>
+          <li class="checklist-item">
+            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg>
+            <strong>10-Hour Survey:</strong> Post-event flow emails feedback survey.
+          </li>
+          <li class="checklist-item">
+            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg>
+            <strong>1–5 Star Ratings:</strong> Overall, Venue, and Speaker experience scores.
+          </li>
+          <li class="checklist-item">
+            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg>
+            <strong>Spam Guard:</strong> <code>Feedback_Submitted__c = TRUE</code> locks review.
+          </li>
+        </ul>
+        <div class="tech-tags">
+          <span class="tech-tag">Scheduled Flows</span>
+          <span class="tech-tag">Feedback__c</span>
+          <span class="tech-tag">Executive BI</span>
+        </div>
+      </div>
+
+    </div>
+  </main>
+
+  <!-- Slide-out Speaker Notes Drawer -->
+  <div class="notes-drawer" id="speakerNotesDrawer">
+    <div class="drawer-header" onclick="toggleDrawer()">
+      <div class="drawer-title">
+        <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+        </svg>
+        <span>Presenter Viva Defense Notes (Click to expand/collapse)</span>
+      </div>
+      <span class="tour-badge" id="notesStageBadge">Stage 1 Notes</span>
+    </div>
+    <div class="speaker-text" id="speakerNoteText">
+      <strong>Sir, let me explain Stage 1:</strong> Here we establish least-privilege security. We set <code>Event__c</code> to Private so Organizers only manage their own events, while Role Hierarchy lets Event Managers oversee everything vertically. Master-Detail child objects like Registrations and Tickets are set to Controlled by Parent.
+    </div>
+  </div>
+
+  <!-- Detail Modal -->
+  <div class="modal-overlay" id="detailModal" onclick="closeModal(event)">
+    <div class="modal-box" onclick="event.stopPropagation()">
+      <button class="modal-close" onclick="closeModal()">&times;</button>
+      <div id="modalContent"></div>
+    </div>
+  </div>
+
+  <script>
+    // Speaker notes for each stage
+    const stageNotes = {
+      1: "<strong>Stage 1 (Admin & Security):</strong> Sir, here we establish enterprise security. <code>Event__c</code> is Private, <code>Venue__c</code> is Public Read Only, and all transactional children (Ticket Types, Registrations, Tickets) are Controlled by Parent. We also set up Custom Metadata Types like <code>Approval_Matrix__mdt</code> and <code>Payment_Gateway_Config__mdt</code> so admins can configure thresholds and UPI credentials without modifying code.",
+      2: "<strong>Stage 2 (Event Inception):</strong> The Organizer uses our guided Screen Flow <code>Event_Creation_Screen_Flow</code>. We support 9 broad categories. To make tier configuration seamless, we embedded custom LWC <code>ticketTypeCollector</code> directly inside the flow, which aggregates quotas in real-time and warns if total seats exceed the venue's physical safety limit.",
+      3: "<strong>Stage 3 (Approval Engine):</strong> Instead of a single hardcoded threshold, our Apex class <code>EventApprovalService</code> evaluates the proposed budget against <code>Approval_Matrix__mdt</code>. If it's below the category auto-limit (e.g. ₹50,000 for Meetup), it auto-approves instantly. If it exceeds that, it routes to the Event Manager. If rejected, the manager must supply a mandatory <code>Rejection_Reason__c</code>.",
+      4: "<strong>Stage 4 (Publication & Lock):</strong> In Salesforce best practice, Approved does not mean Published. Once approved, the organizer clicks Publish. At that instant, our validation rules lock the ticket prices and quotas so organizers cannot perform bait-and-switch pricing on consumers.",
+      5: "<strong>Stage 5 (Multi-Seat Booking):</strong> Attendees browse published events on our portal. When booking multiple tickets, they can select seat quantities and fill out attendee details for each seat. In Apex, we lock the <code>Ticket_Type__c</code> record using <code>FOR UPDATE</code> to prevent race conditions, create pending registrations, and group them with a unique <code>Booking_Group_Id__c</code>.",
+      6: "<strong>Stage 6 (Simulated UPI Payment):</strong> LWC <code>paymentQrVerification</code> generates a real dynamic UPI payload with a 170px SVG countdown ring. When the timer finishes or the user clicks 'I Have Paid', our Apex controller verifies idempotency, records the <code>Payment__c</code> record, flips all registrations to Confirmed, and generates official <code>Ticket__c</code> passes.",
+      7: "<strong>Stage 7 (Pass & Check-In):</strong> Attendees download their pass via Visualforce PDF <code>PrintableTicket.page</code>, complete with machine-scannable barcodes and a full co-attendee roster. On the event day, the Registration Desk scans the barcode and flips the ticket status to Checked In, with guards against duplicate entry.",
+      8: "<strong>Stage 8 (Automation & Reviews):</strong> Scheduled flows handle the tail end of the lifecycle: 24 hours prior to the event, an email reminder with ticket barcode is dispatched. 10 hours post-event, attendees receive a feedback survey to rate the event, venue, and speaker from 1 to 5 stars, with duplicate spam prevention."
+    };
+
+    let currentTourStep = 1;
+    let isTourActive = false;
+
+    function toggleTour() {
+      isTourActive = !isTourActive;
+      const banner = document.getElementById('tourBanner');
+      const btn = document.getElementById('tourToggleBtn');
+      
+      if (isTourActive) {
+        banner.style.display = 'flex';
+        btn.innerHTML = `
+          <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+          Exit Tour Mode
+        `;
+        currentTourStep = 1;
+        applyTourStep(currentTourStep);
+      } else {
+        banner.style.display = 'none';
+        btn.innerHTML = `
+          <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          Interactive Tour Mode
+        `;
+        resetCards();
+      }
+    }
+
+    function applyTourStep(step) {
+      const cards = document.querySelectorAll('.flow-card');
+      cards.forEach(card => {
+        const cardStep = parseInt(card.getAttribute('data-step'));
+        if (cardStep === step) {
+          card.classList.add('active-tour-step');
+          card.classList.remove('dimmed');
+          card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        } else {
+          card.classList.remove('active-tour-step');
+          card.classList.add('dimmed');
+        }
+      });
+
+      // Update banner text
+      const titles = [
+        "Stage 1: Admin Governance & Custom Metadata",
+        "Stage 2: Event Inception & Dynamic Ticket Tiers",
+        "Stage 3: Dynamic Multi-Tier Category Approval Engine",
+        "Stage 4: Publication & Inventory Lockdown",
+        "Stage 5: Attendee Discovery & Multi-Seat Booking",
+        "Stage 6: Simulated UPI QR Payment & Atomic Settlement",
+        "Stage 7: Printable Barcode Ticket Pass & Gate Check-In",
+        "Stage 8: Scheduled Automation & Post-Event Feedback"
+      ];
+      
+      const subtitles = [
+        "System Administrator configures security baselines, OWD, and approval matrix metadata.",
+        "Organizer launches Screen Flow, selects venue, and creates pricing tiers via embedded LWC.",
+        "EventApprovalService evaluates proposed budget against category ceilings with auto-approval.",
+        "Approved events are published, triggering database validation rules that lock prices and quotas.",
+        "Attendees browse events, pick seat quantities, and reserve pending registrations with FOR UPDATE lock.",
+        "Interactive UPI QR modal runs 10s countdown ring and atomically creates payments and tickets.",
+        "Visualforce PDF ticket with barcode and co-attendee roster enables rapid gate check-in.",
+        "Scheduled flows send 24h pre-event reminders and 10h post-event satisfaction surveys."
+      ];
+
+      document.getElementById('tourStageTitle').innerText = titles[step - 1];
+      document.getElementById('tourStageSubtitle').innerText = subtitles[step - 1];
+      document.getElementById('tourStepCounter').innerText = `Stage ${step} of 8`;
+      
+      // Update Speaker Notes
+      document.getElementById('notesStageBadge').innerText = `Stage ${step} Viva Notes`;
+      document.getElementById('speakerNoteText').innerHTML = stageNotes[step];
+    }
+
+    function nextStep() {
+      if (currentTourStep < 8) {
+        currentTourStep++;
+      } else {
+        currentTourStep = 1;
+      }
+      applyTourStep(currentTourStep);
+    }
+
+    function prevStep() {
+      if (currentTourStep > 1) {
+        currentTourStep--;
+      } else {
+        currentTourStep = 8;
+      }
+      applyTourStep(currentTourStep);
+    }
+
+    function selectCard(step) {
+      if (isTourActive) {
+        currentTourStep = step;
+        applyTourStep(step);
+      } else {
+        // Update notes for clicked card
+        document.getElementById('notesStageBadge').innerText = `Stage ${step} Viva Notes`;
+        document.getElementById('speakerNoteText').innerHTML = stageNotes[step];
+        
+        // Highlight clicked card briefly
+        const cards = document.querySelectorAll('.flow-card');
+        cards.forEach(card => {
+          if (parseInt(card.getAttribute('data-step')) === step) {
+            card.classList.add('active-tour-step');
+          } else {
+            card.classList.remove('active-tour-step');
+          }
+        });
+      }
+    }
+
+    function resetCards() {
+      const cards = document.querySelectorAll('.flow-card');
+      cards.forEach(card => {
+        card.classList.remove('active-tour-step');
+        card.classList.remove('dimmed');
+      });
+    }
+
+    function filterPersona(persona) {
+      // Deactivate tour if running
+      if (isTourActive) toggleTour();
+
+      // Update active filter button
+      const buttons = document.querySelectorAll('.filter-btn');
+      buttons.forEach(btn => btn.classList.remove('active'));
+      event.target.classList.add('active');
+
+      const cards = document.querySelectorAll('.flow-card');
+      cards.forEach(card => {
+        const personas = card.getAttribute('data-persona').split(' ');
+        if (persona === 'all' || personas.includes(persona)) {
+          card.style.display = 'flex';
+          card.classList.remove('dimmed');
+        } else {
+          card.style.display = 'none';
+        }
+      });
+    }
+
+    function toggleDrawer() {
+      const drawer = document.getElementById('speakerNotesDrawer');
+      drawer.classList.toggle('collapsed');
+    }
+
+    function toggleFullscreen() {
+      if (!document.fullscreenElement) {
+        document.documentElement.requestFullscreen().catch(err => {});
+      } else {
+        if (document.exitFullscreen) {
+          document.exitFullscreen();
+        }
+      }
+    }
+
+    // Initialize with Stage 1 notes
+    document.getElementById('speakerNoteText').innerHTML = stageNotes[1];
+  </script>
+</body>
+</html>
