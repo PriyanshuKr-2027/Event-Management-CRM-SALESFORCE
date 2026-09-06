@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='UTF-8'?>
 <Flow xmlns="http://soap.sforce.com/2006/04/metadata">
     <apiVersion>61.0</apiVersion>
-    <description>Schedule-Triggered Flow running hourly to send post-event feedback survey emails to confirmed attendees, with automatic deduplication against existing feedback.</description>
+    <description>Schedule-Triggered Flow running daily to send post-event feedback survey emails in bulk to confirmed attendees.</description>
     <environments>Default</environments>
     <interviewLabel>Post Event Feedback Scheduled Flow {!$Flow.CurrentDateTime}</interviewLabel>
     <label>Post Event Feedback Scheduled Flow</label>
@@ -44,18 +44,15 @@
     <actionCalls>
         <name>Send_Feedback_Email</name>
         <label>Send Feedback Email</label>
-        <locationX>440</locationX>
-        <locationY>684</locationY>
+        <locationX>50</locationX>
+        <locationY>750</locationY>
         <actionName>emailSimple</actionName>
         <actionType>emailSimple</actionType>
-        <connector>
-            <targetReference>Loop_Registrations</targetReference>
-        </connector>
         <flowTransactionModel>CurrentTransaction</flowTransactionModel>
         <inputParameters>
-            <name>emailAddresses</name>
+            <name>emailAddressesArray</name>
             <value>
-                <elementReference>Loop_Registrations.Attendee__r.Email__c</elementReference>
+                <elementReference>colFeedbackEmails</elementReference>
             </value>
         </inputParameters>
         <inputParameters>
@@ -71,29 +68,42 @@
             </value>
         </inputParameters>
     </actionCalls>
+    <assignments>
+        <name>Assign_Feedback_Email</name>
+        <label>Add Email to List</label>
+        <locationX>264</locationX>
+        <locationY>400</locationY>
+        <assignmentItems>
+            <assignToReference>colFeedbackEmails</assignToReference>
+            <operator>Add</operator>
+            <value>
+                <elementReference>Loop_Registrations.Attendee__r.Email__c</elementReference>
+            </value>
+        </assignmentItems>
+        <connector>
+            <targetReference>Loop_Registrations</targetReference>
+        </connector>
+    </assignments>
     <decisions>
-        <name>Decision_Feedback_Exists</name>
-        <label>Feedback Already Exists?</label>
-        <locationX>352</locationX>
-        <locationY>576</locationY>
-        <defaultConnector>
-            <targetReference>Send_Feedback_Email</targetReference>
-        </defaultConnector>
-        <defaultConnectorLabel>No Feedback Yet</defaultConnectorLabel>
+        <name>Decision_Has_Feedback_Recipients</name>
+        <label>Has Recipients?</label>
+        <locationX>176</locationX>
+        <locationY>600</locationY>
+        <defaultConnectorLabel>No Recipients</defaultConnectorLabel>
         <rules>
-            <name>Feedback_Found</name>
+            <name>Has_Recipients_Found</name>
             <conditionLogic>and</conditionLogic>
             <conditions>
-                <leftValueReference>varExistingFeedback</leftValueReference>
-                <operator>IsNull</operator>
+                <leftValueReference>colFeedbackEmails</leftValueReference>
+                <operator>IsEmpty</operator>
                 <rightValue>
                     <booleanValue>false</booleanValue>
                 </rightValue>
             </conditions>
             <connector>
-                <targetReference>Loop_Registrations</targetReference>
+                <targetReference>Send_Feedback_Email</targetReference>
             </connector>
-            <label>Feedback Found</label>
+            <label>Has Recipients</label>
         </rules>
     </decisions>
     <formulas>
@@ -110,18 +120,21 @@
         <name>Loop_Registrations</name>
         <label>Loop Registrations</label>
         <locationX>176</locationX>
-        <locationY>360</locationY>
+        <locationY>250</locationY>
         <collectionReference>colConfirmedRegistrations</collectionReference>
         <iterationOrder>Asc</iterationOrder>
         <nextValueConnector>
-            <targetReference>Check_Existing_Feedback</targetReference>
+            <targetReference>Assign_Feedback_Email</targetReference>
         </nextValueConnector>
+        <noMoreValuesConnector>
+            <targetReference>Decision_Has_Feedback_Recipients</targetReference>
+        </noMoreValuesConnector>
     </loops>
     <recordLookups>
         <name>Get_Confirmed_Registrations</name>
-        <label>Get Confirmed Registrations</label>
+        <label>Get Registrations Needing Feedback</label>
         <locationX>176</locationX>
-        <locationY>252</locationY>
+        <locationY>120</locationY>
         <assignNullValuesIfNoRecordsFound>false</assignNullValuesIfNoRecordsFound>
         <connector>
             <targetReference>Loop_Registrations</targetReference>
@@ -141,32 +154,18 @@
                 <stringValue>Confirmed</stringValue>
             </value>
         </filters>
+        <filters>
+            <field>Feedback_Submitted__c</field>
+            <operator>EqualTo</operator>
+            <value>
+                <booleanValue>false</booleanValue>
+            </value>
+        </filters>
         <object>Registration__c</object>
         <outputReference>colConfirmedRegistrations</outputReference>
         <queriedFields>Id</queriedFields>
         <queriedFields>Name</queriedFields>
         <queriedFields>Attendee__c</queriedFields>
-    </recordLookups>
-    <recordLookups>
-        <name>Check_Existing_Feedback</name>
-        <label>Check Existing Feedback</label>
-        <locationX>352</locationX>
-        <locationY>468</locationY>
-        <assignNullValuesIfNoRecordsFound>true</assignNullValuesIfNoRecordsFound>
-        <connector>
-            <targetReference>Decision_Feedback_Exists</targetReference>
-        </connector>
-        <filterLogic>and</filterLogic>
-        <filters>
-            <field>Registration__c</field>
-            <operator>EqualTo</operator>
-            <value>
-                <elementReference>Loop_Registrations.Id</elementReference>
-            </value>
-        </filters>
-        <object>Feedback__c</object>
-        <outputReference>varExistingFeedback</outputReference>
-        <queriedFields>Id</queriedFields>
     </recordLookups>
     <variables>
         <name>colConfirmedRegistrations</name>
@@ -177,11 +176,10 @@
         <objectType>Registration__c</objectType>
     </variables>
     <variables>
-        <name>varExistingFeedback</name>
-        <dataType>SObject</dataType>
-        <isCollection>false</isCollection>
+        <name>colFeedbackEmails</name>
+        <dataType>String</dataType>
+        <isCollection>true</isCollection>
         <isInput>false</isInput>
         <isOutput>false</isOutput>
-        <objectType>Feedback__c</objectType>
     </variables>
 </Flow>

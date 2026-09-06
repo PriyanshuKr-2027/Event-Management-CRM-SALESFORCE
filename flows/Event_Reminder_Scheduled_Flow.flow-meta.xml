@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='UTF-8'?>
 <Flow xmlns="http://soap.sforce.com/2006/04/metadata">
     <apiVersion>61.0</apiVersion>
-    <description>Schedule-Triggered Flow running hourly to send 24-hour reminder emails to confirmed registrants for upcoming events.</description>
+    <description>Schedule-Triggered Flow running daily to send 24-hour reminder emails in bulk to confirmed registrants.</description>
     <environments>Default</environments>
     <interviewLabel>Event Reminder Scheduled Flow {!$Flow.CurrentDateTime}</interviewLabel>
     <label>Event Reminder Scheduled Flow</label>
@@ -51,18 +51,15 @@
     <actionCalls>
         <name>Send_Reminder_Email</name>
         <label>Send Reminder Email</label>
-        <locationX>264</locationX>
-        <locationY>468</locationY>
+        <locationX>50</locationX>
+        <locationY>750</locationY>
         <actionName>emailSimple</actionName>
         <actionType>emailSimple</actionType>
-        <connector>
-            <targetReference>Loop_Confirmed_Registrations</targetReference>
-        </connector>
         <flowTransactionModel>CurrentTransaction</flowTransactionModel>
         <inputParameters>
-            <name>emailAddresses</name>
+            <name>emailAddressesArray</name>
             <value>
-                <elementReference>Loop_Confirmed_Registrations.Attendee__r.Email__c</elementReference>
+                <elementReference>colAttendeeEmails</elementReference>
             </value>
         </inputParameters>
         <inputParameters>
@@ -78,6 +75,44 @@
             </value>
         </inputParameters>
     </actionCalls>
+    <assignments>
+        <name>Assign_Email_To_Collection</name>
+        <label>Add Email to List</label>
+        <locationX>264</locationX>
+        <locationY>400</locationY>
+        <assignmentItems>
+            <assignToReference>colAttendeeEmails</assignToReference>
+            <operator>Add</operator>
+            <value>
+                <elementReference>Loop_Confirmed_Registrations.Attendee__r.Email__c</elementReference>
+            </value>
+        </assignmentItems>
+        <connector>
+            <targetReference>Loop_Confirmed_Registrations</targetReference>
+        </connector>
+    </assignments>
+    <decisions>
+        <name>Decision_Has_Recipients</name>
+        <label>Has Recipients?</label>
+        <locationX>176</locationX>
+        <locationY>600</locationY>
+        <defaultConnectorLabel>No Recipients</defaultConnectorLabel>
+        <rules>
+            <name>Has_Recipients_Found</name>
+            <conditionLogic>and</conditionLogic>
+            <conditions>
+                <leftValueReference>colAttendeeEmails</leftValueReference>
+                <operator>IsEmpty</operator>
+                <rightValue>
+                    <booleanValue>false</booleanValue>
+                </rightValue>
+            </conditions>
+            <connector>
+                <targetReference>Send_Reminder_Email</targetReference>
+            </connector>
+            <label>Has Recipients</label>
+        </rules>
+    </decisions>
     <formulas>
         <name>formulaReminderSubject</name>
         <dataType>String</dataType>
@@ -92,18 +127,21 @@
         <name>Loop_Confirmed_Registrations</name>
         <label>Loop Confirmed Registrations</label>
         <locationX>176</locationX>
-        <locationY>360</locationY>
+        <locationY>250</locationY>
         <collectionReference>colConfirmedRegistrations</collectionReference>
         <iterationOrder>Asc</iterationOrder>
         <nextValueConnector>
-            <targetReference>Send_Reminder_Email</targetReference>
+            <targetReference>Assign_Email_To_Collection</targetReference>
         </nextValueConnector>
+        <noMoreValuesConnector>
+            <targetReference>Decision_Has_Recipients</targetReference>
+        </noMoreValuesConnector>
     </loops>
     <recordLookups>
         <name>Get_Confirmed_Registrations</name>
         <label>Get Confirmed Registrations</label>
         <locationX>176</locationX>
-        <locationY>252</locationY>
+        <locationY>120</locationY>
         <assignNullValuesIfNoRecordsFound>false</assignNullValuesIfNoRecordsFound>
         <connector>
             <targetReference>Loop_Confirmed_Registrations</targetReference>
@@ -129,6 +167,13 @@
         <queriedFields>Name</queriedFields>
         <queriedFields>Attendee__c</queriedFields>
     </recordLookups>
+    <variables>
+        <name>colAttendeeEmails</name>
+        <dataType>String</dataType>
+        <isCollection>true</isCollection>
+        <isInput>false</isInput>
+        <isOutput>false</isOutput>
+    </variables>
     <variables>
         <name>colConfirmedRegistrations</name>
         <dataType>SObject</dataType>
