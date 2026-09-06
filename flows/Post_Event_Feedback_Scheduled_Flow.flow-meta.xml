@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='UTF-8'?>
 <Flow xmlns="http://soap.sforce.com/2006/04/metadata">
     <apiVersion>61.0</apiVersion>
-    <description>Schedule-Triggered Flow running hourly to send post-event feedback survey emails to confirmed attendees, with automatic deduplication against existing feedback.</description>
+    <description>Schedule-Triggered Flow running to send post-event feedback survey emails to confirmed attendees, with automatic deduplication against existing feedback.</description>
     <environments>Default</environments>
     <interviewLabel>Post Event Feedback Scheduled Flow {!$Flow.CurrentDateTime}</interviewLabel>
     <label>Post Event Feedback Scheduled Flow</label>
@@ -23,7 +23,7 @@
         <locationX>50</locationX>
         <locationY>0</locationY>
         <connector>
-            <targetReference>Get_Confirmed_Registrations</targetReference>
+            <targetReference>Decision_Has_Event_Ended</targetReference>
         </connector>
         <filterLogic>and</filterLogic>
         <filters>
@@ -44,13 +44,16 @@
     <actionCalls>
         <name>Send_Feedback_Email</name>
         <label>Send Feedback Email</label>
-        <locationX>440</locationX>
-        <locationY>684</locationY>
+        <locationX>528</locationX>
+        <locationY>792</locationY>
         <actionName>emailSimple</actionName>
         <actionType>emailSimple</actionType>
         <connector>
             <targetReference>Loop_Registrations</targetReference>
         </connector>
+        <faultConnector>
+            <targetReference>Loop_Registrations</targetReference>
+        </faultConnector>
         <flowTransactionModel>CurrentTransaction</flowTransactionModel>
         <inputParameters>
             <name>emailAddresses</name>
@@ -72,12 +75,34 @@
         </inputParameters>
     </actionCalls>
     <decisions>
+        <name>Decision_Has_Event_Ended</name>
+        <label>Has Event Ended?</label>
+        <locationX>50</locationX>
+        <locationY>150</locationY>
+        <defaultConnectorLabel>Event Not Ended Yet</defaultConnectorLabel>
+        <rules>
+            <name>Event_Concluded</name>
+            <conditionLogic>and</conditionLogic>
+            <conditions>
+                <leftValueReference>formulaHasEventEnded</leftValueReference>
+                <operator>EqualTo</operator>
+                <rightValue>
+                    <booleanValue>true</booleanValue>
+                </rightValue>
+            </conditions>
+            <connector>
+                <targetReference>Get_Confirmed_Registrations</targetReference>
+            </connector>
+            <label>Event Concluded</label>
+        </rules>
+    </decisions>
+    <decisions>
         <name>Decision_Feedback_Exists</name>
         <label>Feedback Already Exists?</label>
         <locationX>352</locationX>
         <locationY>576</locationY>
         <defaultConnector>
-            <targetReference>Send_Feedback_Email</targetReference>
+            <targetReference>Decision_Has_Valid_Attendee_Email</targetReference>
         </defaultConnector>
         <defaultConnectorLabel>No Feedback Yet</defaultConnectorLabel>
         <rules>
@@ -96,6 +121,43 @@
             <label>Feedback Found</label>
         </rules>
     </decisions>
+    <decisions>
+        <name>Decision_Has_Valid_Attendee_Email</name>
+        <label>Has Valid Attendee Email?</label>
+        <locationX>440</locationX>
+        <locationY>684</locationY>
+        <defaultConnector>
+            <targetReference>Loop_Registrations</targetReference>
+        </defaultConnector>
+        <defaultConnectorLabel>No Valid Email</defaultConnectorLabel>
+        <rules>
+            <name>Valid_Email</name>
+            <conditionLogic>and</conditionLogic>
+            <conditions>
+                <leftValueReference>Loop_Registrations.Attendee__r.Email__c</leftValueReference>
+                <operator>IsNull</operator>
+                <rightValue>
+                    <booleanValue>false</booleanValue>
+                </rightValue>
+            </conditions>
+            <conditions>
+                <leftValueReference>Loop_Registrations.Attendee__r.Email__c</leftValueReference>
+                <operator>NotEqualTo</operator>
+                <rightValue>
+                    <stringValue></stringValue>
+                </rightValue>
+            </conditions>
+            <connector>
+                <targetReference>Send_Feedback_Email</targetReference>
+            </connector>
+            <label>Valid Email</label>
+        </rules>
+    </decisions>
+    <formulas>
+        <name>formulaHasEventEnded</name>
+        <dataType>Boolean</dataType>
+        <expression>NOT(ISBLANK({!$Record.End_Date_Time__c})) &amp;&amp; ({!$Record.End_Date_Time__c} &lt; {!$Flow.CurrentDateTime})</expression>
+    </formulas>
     <formulas>
         <name>formulaFeedbackSubject</name>
         <dataType>String</dataType>
