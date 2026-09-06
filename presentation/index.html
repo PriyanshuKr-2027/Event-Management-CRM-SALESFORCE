@@ -1,0 +1,1076 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Enterprise Event Management CRM | Salesforce Presentation</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&family=Outfit:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-base: #0a0e1a;
+            --bg-surface: #111827;
+            --bg-card: rgba(17, 24, 39, 0.75);
+            --bg-card-hover: rgba(31, 41, 55, 0.85);
+            --border-card: rgba(255, 255, 255, 0.08);
+            --border-focus: #0176D3;
+            --sf-blue: #0176D3;
+            --sf-blue-light: #38bdf8;
+            --sf-teal: #0d9488;
+            --accent-purple: #8b5cf6;
+            --accent-emerald: #10b981;
+            --accent-amber: #f59e0b;
+            --accent-rose: #f43f5e;
+            --text-primary: #f8fafc;
+            --text-secondary: #94a3b8;
+            --text-muted: #64748b;
+            --radius-lg: 16px;
+            --radius-md: 10px;
+            --radius-sm: 6px;
+            --shadow-glow: 0 0 40px -10px rgba(1, 118, 211, 0.35);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-base);
+            color: var(--text-primary);
+            overflow: hidden;
+            height: 100vh;
+            width: 100vw;
+            display: flex;
+            flex-direction: column;
+            user-select: none;
+        }
+
+        /* Top Progress & Header */
+        .header-bar {
+            height: 52px;
+            background: rgba(10, 14, 26, 0.8);
+            backdrop-filter: blur(16px);
+            border-bottom: 1px solid var(--border-card);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 28px;
+            z-index: 100;
+        }
+
+        .header-logo {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-family: 'Outfit', sans-serif;
+            font-weight: 700;
+            font-size: 1.05rem;
+            letter-spacing: -0.01em;
+            color: #fff;
+        }
+
+        .sf-badge {
+            background: linear-gradient(135deg, #0176D3, #0284c7);
+            color: #fff;
+            padding: 3px 8px;
+            border-radius: 6px;
+            font-size: 0.72rem;
+            font-weight: 700;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+        }
+
+        .slide-counter {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            background: rgba(255, 255, 255, 0.04);
+            padding: 4px 12px;
+            border-radius: 20px;
+            border: 1px solid var(--border-card);
+        }
+
+        .controls {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .btn-icon {
+            background: rgba(255, 255, 255, 0.06);
+            border: 1px solid var(--border-card);
+            color: var(--text-secondary);
+            width: 34px;
+            height: 34px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-size: 0.9rem;
+        }
+
+        .btn-icon:hover {
+            background: rgba(255, 255, 255, 0.12);
+            color: #fff;
+            border-color: rgba(255, 255, 255, 0.2);
+            transform: translateY(-1px);
+        }
+
+        .progress-line {
+            height: 3px;
+            background: rgba(255, 255, 255, 0.06);
+            width: 100%;
+            position: relative;
+        }
+
+        .progress-bar-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #0176D3, #38bdf8, #8b5cf6);
+            width: 0%;
+            transition: width 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        /* Slide Deck Viewport */
+        .viewport {
+            flex: 1;
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+        }
+
+        .slide {
+            position: absolute;
+            inset: 20px 30px;
+            opacity: 0;
+            pointer-events: none;
+            transform: scale(0.97) translateY(12px);
+            transition: opacity 0.4s cubic-bezier(0.4, 0, 0.2, 1), transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+            scrollbar-width: thin;
+            scrollbar-color: var(--border-card) transparent;
+        }
+
+        .slide.active {
+            opacity: 1;
+            pointer-events: auto;
+            transform: scale(1) translateY(0);
+        }
+
+        /* Slide Content Components */
+        .slide-header {
+            margin-bottom: 24px;
+        }
+
+        .slide-tag {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.78rem;
+            color: var(--sf-blue-light);
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            margin-bottom: 6px;
+        }
+
+        .slide-title {
+            font-family: 'Outfit', sans-serif;
+            font-size: 2.2rem;
+            font-weight: 700;
+            letter-spacing: -0.02em;
+            background: linear-gradient(135deg, #ffffff 0%, #cbd5e1 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .slide-subtitle {
+            font-size: 1.05rem;
+            color: var(--text-secondary);
+            margin-top: 4px;
+        }
+
+        /* Grid Layouts */
+        .grid-2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            flex: 1;
+        }
+
+        .grid-3 {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 20px;
+            flex: 1;
+        }
+
+        .grid-4 {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
+            flex: 1;
+        }
+
+        .card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-card);
+            border-radius: var(--radius-lg);
+            padding: 22px;
+            backdrop-filter: blur(12px);
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            transition: all 0.25s ease;
+        }
+
+        .card:hover {
+            border-color: rgba(255, 255, 255, 0.15);
+            background: var(--bg-card-hover);
+        }
+
+        .card-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 14px;
+        }
+
+        .card-icon {
+            width: 36px;
+            height: 36px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.1rem;
+            background: rgba(1, 118, 211, 0.15);
+            color: var(--sf-blue-light);
+            border: 1px solid rgba(1, 118, 211, 0.3);
+        }
+
+        .card-title {
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.15rem;
+            font-weight: 600;
+            color: #fff;
+        }
+
+        .card-body {
+            color: var(--text-secondary);
+            font-size: 0.92rem;
+            line-height: 1.6;
+            flex: 1;
+        }
+
+        ul.feature-list {
+            list-style: none;
+        }
+
+        ul.feature-list li {
+            position: relative;
+            padding-left: 20px;
+            margin-bottom: 10px;
+            font-size: 0.9rem;
+            color: #cbd5e1;
+            line-height: 1.5;
+        }
+
+        ul.feature-list li::before {
+            content: "▹";
+            position: absolute;
+            left: 0;
+            color: var(--sf-blue-light);
+            font-size: 1.1rem;
+            line-height: 1.3;
+        }
+
+        /* Interactive Screenshots & Placeholders */
+        .screenshot-box {
+            background: rgba(0, 0, 0, 0.35);
+            border: 1px dashed rgba(255, 255, 255, 0.18);
+            border-radius: var(--radius-md);
+            overflow: hidden;
+            position: relative;
+            min-height: 220px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-top: 12px;
+        }
+
+        .screenshot-box img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+            border-radius: var(--radius-md);
+        }
+
+        .screenshot-placeholder {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            color: var(--text-muted);
+            padding: 24px;
+            text-align: center;
+            font-size: 0.85rem;
+        }
+
+        .screenshot-placeholder code {
+            font-family: 'JetBrains Mono', monospace;
+            background: rgba(255, 255, 255, 0.08);
+            padding: 3px 8px;
+            border-radius: 4px;
+            color: var(--sf-blue-light);
+            font-size: 0.78rem;
+        }
+
+        /* Flow Diagrams & Process Flow */
+        .process-pipeline {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            margin-top: 14px;
+            overflow-x: auto;
+            padding-bottom: 8px;
+        }
+
+        .step-node {
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid var(--border-card);
+            border-radius: var(--radius-md);
+            padding: 12px 16px;
+            min-width: 140px;
+            text-align: center;
+        }
+
+        .step-node .step-num {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.7rem;
+            color: var(--sf-blue-light);
+            text-transform: uppercase;
+        }
+
+        .step-node .step-name {
+            font-weight: 600;
+            font-size: 0.88rem;
+            color: #fff;
+            margin-top: 2px;
+        }
+
+        .step-arrow {
+            color: var(--text-muted);
+            font-size: 1.1rem;
+        }
+
+        /* Key Metrics Banner */
+        .metric-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 0.76rem;
+            font-weight: 600;
+        }
+        .pill-success { background: rgba(16, 185, 129, 0.15); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.3); }
+        .pill-blue { background: rgba(1, 118, 211, 0.15); color: #38bdf8; border: 1px solid rgba(1, 118, 211, 0.3); }
+        .pill-purple { background: rgba(139, 92, 246, 0.15); color: #a78bfa; border: 1px solid rgba(139, 92, 246, 0.3); }
+
+        /* Code & Tables */
+        .code-snippet {
+            font-family: 'JetBrains Mono', monospace;
+            background: #05070e;
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            border-radius: 8px;
+            padding: 12px 14px;
+            font-size: 0.82rem;
+            color: #e2e8f0;
+            line-height: 1.5;
+            overflow-x: auto;
+        }
+        .code-kw { color: #f43f5e; }
+        .code-fn { color: #38bdf8; }
+        .code-str { color: #34d399; }
+        .code-cm { color: #64748b; font-style: italic; }
+
+        .table-custom {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.86rem;
+            margin-top: 8px;
+        }
+        .table-custom th {
+            text-align: left;
+            padding: 10px 12px;
+            color: var(--text-muted);
+            font-weight: 600;
+            border-bottom: 1px solid var(--border-card);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+        }
+        .table-custom td {
+            padding: 10px 12px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+            color: #cbd5e1;
+        }
+
+        /* Bottom Controls Bar */
+        .footer-bar {
+            height: 48px;
+            background: rgba(10, 14, 26, 0.9);
+            border-top: 1px solid var(--border-card);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 28px;
+            font-size: 0.8rem;
+            color: var(--text-muted);
+        }
+
+        .keys-hint {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+        .key-badge {
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.72rem;
+            color: #e2e8f0;
+        }
+
+        /* Title Slide Custom */
+        .hero-center {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            height: 100%;
+            gap: 20px;
+        }
+        .hero-title {
+            font-family: 'Outfit', sans-serif;
+            font-size: 3.6rem;
+            font-weight: 800;
+            line-height: 1.1;
+            letter-spacing: -0.03em;
+            background: linear-gradient(135deg, #ffffff 0%, #94a3b8 50%, #38bdf8 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            max-width: 900px;
+        }
+        .hero-desc {
+            font-size: 1.25rem;
+            color: var(--text-secondary);
+            max-width: 720px;
+            line-height: 1.6;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Header Bar -->
+    <header class="header-bar">
+        <div class="header-logo">
+            <span class="sf-badge">Salesforce</span>
+            <span>Event Management CRM</span>
+        </div>
+        <div class="slide-counter" id="slideIndicator">01 / 11</div>
+        <div class="controls">
+            <button class="btn-icon" id="prevBtn" title="Previous Slide (Left Arrow)">◀</button>
+            <button class="btn-icon" id="nextBtn" title="Next Slide (Right Arrow / Space)">▶</button>
+            <button class="btn-icon" id="fullscreenBtn" title="Toggle Fullscreen (F)">⛶</button>
+        </div>
+    </header>
+
+    <div class="progress-line">
+        <div class="progress-bar-fill" id="progressBar"></div>
+    </div>
+
+    <!-- Viewport Container -->
+    <main class="viewport">
+
+        <!-- SLIDE 1: Title & Executive Summary -->
+        <section class="slide active" data-slide="1">
+            <div class="hero-center">
+                <div style="display: flex; gap: 8px;">
+                    <span class="metric-pill pill-blue">Cloud CRM Platform</span>
+                    <span class="metric-pill pill-purple">Spring '24 Release (API 61.0)</span>
+                    <span class="metric-pill pill-success">Zero-Oversell Architecture</span>
+                </div>
+                <h1 class="hero-title">Enterprise Event Management CRM</h1>
+                <p class="hero-desc">
+                    A comprehensive, transactional event orchestration platform built native on Salesforce — featuring dynamic LWC booking, atomic quota locking, budget approvals, and automated lifecycle execution.
+                </p>
+                <div style="display: flex; gap: 24px; margin-top: 20px;">
+                    <div class="card" style="padding: 16px 24px; text-align: left;">
+                        <div style="font-size: 0.78rem; color: var(--text-muted); font-family: 'JetBrains Mono', monospace;">PRESENTED BY</div>
+                        <div style="font-weight: 700; font-size: 1.1rem; color: #fff; margin-top: 2px;">Priyanshu Kumar</div>
+                        <div style="font-size: 0.82rem; color: var(--sf-blue-light);">Lead Salesforce Architect & Developer</div>
+                    </div>
+                    <div class="card" style="padding: 16px 24px; text-align: left;">
+                        <div style="font-size: 0.78rem; color: var(--text-muted); font-family: 'JetBrains Mono', monospace;">PLATFORM</div>
+                        <div style="font-weight: 700; font-size: 1.1rem; color: #fff; margin-top: 2px;">Salesforce Enterprise Core</div>
+                        <div style="font-size: 0.82rem; color: var(--accent-emerald);">LWC • Apex • Flow • Security Model</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- SLIDE 2: Problem Statement & Solution -->
+        <section class="slide" data-slide="2">
+            <div class="slide-header">
+                <div class="slide-tag">02 • Business Case</div>
+                <h2 class="slide-title">Problem Statement vs. Solution</h2>
+                <p class="slide-subtitle">Bridging the gap between manual event operations and automated enterprise customer experience.</p>
+            </div>
+            <div class="grid-2">
+                <div class="card" style="border-left: 4px solid var(--accent-rose);">
+                    <div class="card-header">
+                        <div class="card-icon" style="background: rgba(244, 63, 94, 0.15); color: #fb7185; border-color: rgba(244, 63, 94, 0.3);">✕</div>
+                        <div class="card-title">Traditional Challenges</div>
+                    </div>
+                    <ul class="feature-list">
+                        <li><strong>Ticket Overselling & Race Conditions:</strong> Concurrent users checking out simultaneously exhaust venue capacity, causing embarrassing booking conflicts.</li>
+                        <li><strong>Disjointed Budget Approval:</strong> High-value corporate events require manual email chains for manager approvals before publication.</li>
+                        <li><strong>Clunky Registration UX:</strong> Standard CRM forms look like internal databases rather than modern, consumer-ready ticketing apps.</li>
+                        <li><strong>Manual Follow-ups & Reminders:</strong> Staff forget to issue reminder emails 24 hours prior or dispatch post-event feedback surveys.</li>
+                    </ul>
+                </div>
+
+                <div class="card" style="border-left: 4px solid var(--accent-emerald);">
+                    <div class="card-header">
+                        <div class="card-icon" style="background: rgba(16, 185, 129, 0.15); color: #34d399; border-color: rgba(16, 185, 129, 0.3);">✓</div>
+                        <div class="card-title">Salesforce CRM Solution</div>
+                    </div>
+                    <ul class="feature-list">
+                        <li><strong>Atomic Database Locking:</strong> Apex <code>SELECT ... FOR UPDATE</code> locks ticket quotas at the row level, mathematically eliminating oversell risks.</li>
+                        <li><strong>Automated Approval Matrix:</strong> Low-budget events auto-approve instantly; budgets exceeding threshold trigger Salesforce Approval Processes.</li>
+                        <li><strong>Consumer-Grade LWC Portal:</strong> Real-time category filtering, responsive card decks, guest ticket quantity selection, and simulated UPI/QR payment.</li>
+                        <li><strong>Hands-Free Automated Lifecycle:</strong> Scheduled Flows automatically batch 24-hour reminders and post-event survey invitations without human effort.</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <!-- SLIDE 3: System Architecture -->
+        <section class="slide" data-slide="3">
+            <div class="slide-header">
+                <div class="slide-tag">03 • Technical Architecture</div>
+                <h2 class="slide-title">4-Tier System Architecture</h2>
+                <p class="slide-subtitle">Engineered with clear separation of concerns across presentation, business logic, persistence, and security.</p>
+            </div>
+            <div class="grid-4">
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-icon">💻</div>
+                        <div class="card-title">1. Presentation</div>
+                    </div>
+                    <div class="card-body">
+                        <strong>Lightning Web Components:</strong>
+                        <ul class="feature-list" style="margin-top: 10px;">
+                            <li><code>attendeeEventBooking</code> (Portal)</li>
+                            <li><code>ticketTypeCollector</code> (Wizard)</li>
+                            <li><code>paymentQrVerification</code> (Modal)</li>
+                            <li>Real-time client validation & state machine</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-icon">⚡</div>
+                        <div class="card-title">2. Logic & Flows</div>
+                    </div>
+                    <div class="card-body">
+                        <strong>Declarative Automation:</strong>
+                        <ul class="feature-list" style="margin-top: 10px;">
+                            <li><code>Event_Creation_Screen_Flow</code></li>
+                            <li><code>Event_Registration_Screen_Flow</code></li>
+                            <li><code>Post_Registration_Automation</code></li>
+                            <li>Bulkified Scheduled Reminder & Feedback Flows</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-icon">🔒</div>
+                        <div class="card-title">3. Data & Concurrency</div>
+                    </div>
+                    <div class="card-body">
+                        <strong>Enterprise Apex Layer:</strong>
+                        <ul class="feature-list" style="margin-top: 10px;">
+                            <li><code>EventBookingController.cls</code></li>
+                            <li><code>RegistrationTriggerHandler.cls</code></li>
+                            <li><code>SELECT ... FOR UPDATE</code> locking</li>
+                            <li>In-memory running counters for bulk safety</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-icon">🛡️</div>
+                        <div class="card-title">4. Security & Access</div>
+                    </div>
+                    <div class="card-body">
+                        <strong>Granular Access Control:</strong>
+                        <ul class="feature-list" style="margin-top: 10px;">
+                            <li>Private Organization-Wide Defaults (OWD)</li>
+                            <li>Role Hierarchy (Organizers vs Managers)</li>
+                            <li>Criteria & Ownership Sharing Rules</li>
+                            <li>Field-Level Security (FLS) & Permission Sets</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- SLIDE 4: Data Model & ERD -->
+        <section class="slide" data-slide="4">
+            <div class="slide-header">
+                <div class="slide-tag">04 • Relational Schema</div>
+                <h2 class="slide-title">Entity Relationship Diagram (ERD)</h2>
+                <p class="slide-subtitle">Normalized custom objects modeled to balance referential integrity with independent lifecycle management.</p>
+            </div>
+            <div class="grid-2">
+                <div class="card">
+                    <div class="card-title" style="margin-bottom: 12px; font-size: 1rem; color: var(--sf-blue-light);">Core Custom Objects & Cardinality</div>
+                    <table class="table-custom">
+                        <thead>
+                            <tr>
+                                <th>Parent Object</th>
+                                <th>Relationship</th>
+                                <th>Child Object</th>
+                                <th>Purpose</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><code>Event__c</code></td>
+                                <td>1 : Many (Lookup)</td>
+                                <td><code>Ticket_Type__c</code></td>
+                                <td>Multiple pricing tiers (VIP, General)</td>
+                            </tr>
+                            <tr>
+                                <td><code>Event__c</code></td>
+                                <td>Many : 1 (Lookup)</td>
+                                <td><code>Venue__c</code></td>
+                                <td>Physical location & capacity limits</td>
+                            </tr>
+                            <tr>
+                                <td><code>Event__c</code></td>
+                                <td>1 : Many (Lookup)</td>
+                                <td><code>Registration__c</code></td>
+                                <td>Attendee booking attempts (Pending/Confirmed)</td>
+                            </tr>
+                            <tr>
+                                <td><code>Registration__c</code></td>
+                                <td>1 : 1 (Lookup)</td>
+                                <td><code>Ticket__c</code></td>
+                                <td>Issued admission pass with unique barcode ID</td>
+                            </tr>
+                            <tr>
+                                <td><code>Registration__c</code></td>
+                                <td>1 : 1 (Lookup)</td>
+                                <td><code>Payment__c</code></td>
+                                <td>Transactional payment confirmation record</td>
+                            </tr>
+                            <tr>
+                                <td><code>Registration__c</code></td>
+                                <td>1 : 1 (Lookup)</td>
+                                <td><code>Feedback__c</code></td>
+                                <td>Post-event survey rating & attendee review</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="card">
+                    <div class="card-title" style="margin-bottom: 10px; font-size: 1rem; color: var(--accent-purple);">Design Rationale: Master-Detail vs. Lookup</div>
+                    <ul class="feature-list">
+                        <li><strong>Why Lookup for <code>Ticket_Type__c</code>:</strong> Enables independent archiving, security permissions, and prevents accidental deletion cascades of active tickets.</li>
+                        <li><strong>Inventory Roll-Up Design:</strong> Because <code>Registration__c</code> $\rightarrow$ <code>Ticket_Type__c</code> is a Lookup, <code>Booked_Seats__c</code> is managed atomically in the Apex trigger rather than standard declarative rollups.</li>
+                        <li><strong>Deduplicated Attendee Master:</strong> <code>Attendee__c</code> records are unified by email address. One attendee can register for dozens of events without duplicating their core profile.</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <!-- SLIDE 5: End-to-End Workflow Flowchart -->
+        <section class="slide" data-slide="5">
+            <div class="slide-header">
+                <div class="slide-tag">05 • Business Journey</div>
+                <h2 class="slide-title">End-to-End Event Lifecycle Flowchart</h2>
+                <p class="slide-subtitle">From event ideation and budget approval to attendee ticketing and post-event survey collection.</p>
+            </div>
+            <div class="card" style="flex: 1; justify-content: center;">
+                <div class="process-pipeline">
+                    <div class="step-node">
+                        <div class="step-num">PHASE 1</div>
+                        <div class="step-name">Event Creation</div>
+                        <div style="font-size: 0.72rem; color: var(--text-muted); margin-top: 4px;">Screen Flow + LWC</div>
+                    </div>
+                    <div class="step-arrow">➔</div>
+                    <div class="step-node">
+                        <div class="step-num">PHASE 2</div>
+                        <div class="step-name">Approval Gate</div>
+                        <div style="font-size: 0.72rem; color: var(--text-muted); margin-top: 4px;">Budget Threshold Check</div>
+                    </div>
+                    <div class="step-arrow">➔</div>
+                    <div class="step-node">
+                        <div class="step-num">PHASE 3</div>
+                        <div class="step-name">Portal Discovery</div>
+                        <div style="font-size: 0.72rem; color: var(--text-muted); margin-top: 4px;">LWC Event Browser</div>
+                    </div>
+                    <div class="step-arrow">➔</div>
+                    <div class="step-node">
+                        <div class="step-num">PHASE 4</div>
+                        <div class="step-name">Atomic Booking</div>
+                        <div style="font-size: 0.72rem; color: var(--text-muted); margin-top: 4px;">Row-Lock & Payment</div>
+                    </div>
+                    <div class="step-arrow">➔</div>
+                    <div class="step-node">
+                        <div class="step-num">PHASE 5</div>
+                        <div class="step-name">Ticket Issuance</div>
+                        <div style="font-size: 0.72rem; color: var(--text-muted); margin-top: 4px;">Record-Triggered Flow</div>
+                    </div>
+                    <div class="step-arrow">➔</div>
+                    <div class="step-node">
+                        <div class="step-num">PHASE 6</div>
+                        <div class="step-name">Lifecycle Reminders</div>
+                        <div style="font-size: 0.72rem; color: var(--text-muted); margin-top: 4px;">Bulkified Scheduled Flows</div>
+                    </div>
+                </div>
+
+                <div class="grid-3" style="margin-top: 24px;">
+                    <div style="background: rgba(255, 255, 255, 0.02); padding: 14px; border-radius: 8px; border: 1px solid var(--border-card);">
+                        <strong style="color: var(--sf-blue-light); font-size: 0.85rem;">Organizer Path:</strong>
+                        <p style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 4px;">Submits venue, dates, proposed budget, and multiple ticket tiers with seat quotas.</p>
+                    </div>
+                    <div style="background: rgba(255, 255, 255, 0.02); padding: 14px; border-radius: 8px; border: 1px solid var(--border-card);">
+                        <strong style="color: var(--accent-emerald); font-size: 0.85rem;">Attendee Path:</strong>
+                        <p style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 4px;">Selects ticket count, fills primary/guest info, verifies UPI/QR payment, and accesses passes.</p>
+                    </div>
+                    <div style="background: rgba(255, 255, 255, 0.02); padding: 14px; border-radius: 8px; border: 1px solid var(--border-card);">
+                        <strong style="color: var(--accent-purple); font-size: 0.85rem;">System Engine:</strong>
+                        <p style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 4px;">Locks inventory, creates tickets, dispatches emails, and gathers post-event reviews.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- SLIDE 6: Event Creation & Budget Approval -->
+        <section class="slide" data-slide="6">
+            <div class="slide-header">
+                <div class="slide-tag">06 • Core Feature</div>
+                <h2 class="slide-title">Event Creation & Budget Approval Engine</h2>
+                <p class="slide-subtitle">Screen Flow integrating custom LWC for dynamic ticket tier allocation and automated approval routing.</p>
+            </div>
+            <div class="grid-2">
+                <div class="card">
+                    <div class="card-title" style="font-size: 1.05rem; color: #fff;">Key Technical Highlights</div>
+                    <ul class="feature-list" style="margin-top: 12px;">
+                        <li><strong>Embedded LWC (<code>ticketTypeCollector</code>):</strong> Embedded within the Screen Flow via Custom Flow Element to collect multi-row ticket tiers in real time.</li>
+                        <li><strong>Decoupled Focus-Safe Typing:</strong> Keystrokes are buffered locally in LWC state to avoid typing focus loss during live flow validation.</li>
+                        <li><strong>Dynamic Budget Approval Routing:</strong>
+                            <div class="code-snippet" style="margin-top: 8px;">
+                                IF Proposed_Budget__c > Threshold__c<br>
+                                &nbsp;&nbsp;➔ Status = "Pending Approval"<br>
+                                &nbsp;&nbsp;➔ Submits to Manager Approval Process<br>
+                                ELSE<br>
+                                &nbsp;&nbsp;➔ Status = "Approved" & Published
+                            </div>
+                        </li>
+                    </ul>
+                </div>
+
+                <div class="card">
+                    <div class="card-title" style="font-size: 1.05rem; color: var(--sf-blue-light);">Live System Screenshots</div>
+                    <div class="screenshot-box">
+                        <img src="screenshots/screenshot-event-creation.png" alt="Event Creation Screen" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                        <div class="screenshot-placeholder">
+                            <span>🖼️ Drop Screenshot Here:</span>
+                            <code>presentation/screenshots/screenshot-event-creation.png</code>
+                            <span style="font-size: 0.75rem; color: var(--text-muted);">(Event Creation Flow with Ticket Types table)</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- SLIDE 7: Attendee Portal & Dynamic Booking (LWC) -->
+        <section class="slide" data-slide="7">
+            <div class="slide-header">
+                <div class="slide-tag">07 • Frontend Experience</div>
+                <h2 class="slide-title">Attendee Portal & Booking Experience</h2>
+                <p class="slide-subtitle">High-performance Lightning Web Component offering a responsive e-commerce checkout experience.</p>
+            </div>
+            <div class="grid-2">
+                <div class="card">
+                    <div class="card-title" style="font-size: 1.05rem; color: #fff;">LWC Engineering Capabilities</div>
+                    <ul class="feature-list" style="margin-top: 12px;">
+                        <li><strong>Live Category & Keyword Search:</strong> Real-time filtering without page reloads using JavaScript array evaluation.</li>
+                        <li><strong>Multi-Ticket Allocation:</strong> Supports primary booker + guests with dynamic <code>attendeeList</code> array synchronization.</li>
+                        <li><strong>Client-Side Phone & Email Regex:</strong> Strictly validates 10-digit phone format before server invocation to prevent DML validation rollbacks.</li>
+                        <li><strong>Simulated QR/UPI Payment Gateway:</strong> Emits custom DOM events (<code>paymentconfirmed</code>) with unique transaction references.</li>
+                        <li><strong>"My Tickets" Self-Service Hub:</strong> Displays confirmed tickets, dates, venue addresses, and downloadable pass vouchers.</li>
+                    </ul>
+                </div>
+
+                <div class="card">
+                    <div class="card-title" style="font-size: 1.05rem; color: var(--sf-blue-light);">Live System Screenshots</div>
+                    <div class="screenshot-box">
+                        <img src="screenshots/screenshot-attendee-portal.png" alt="Attendee Portal" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                        <div class="screenshot-placeholder">
+                            <span>🖼️ Drop Screenshot Here:</span>
+                            <code>presentation/screenshots/screenshot-attendee-portal.png</code>
+                            <span style="font-size: 0.75rem; color: var(--text-muted);">(Attendee Booking Portal or QR Payment Modal)</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- SLIDE 8: Concurrency & Transaction Safety -->
+        <section class="slide" data-slide="8">
+            <div class="slide-header">
+                <div class="slide-tag">08 • Senior Engineering</div>
+                <h2 class="slide-title">Transaction Safety & Concurrency Locking</h2>
+                <p class="slide-subtitle">How we solved the classic last-seat race condition problem natively on the Salesforce platform.</p>
+            </div>
+            <div class="grid-2">
+                <div class="card">
+                    <div class="card-title" style="color: var(--accent-rose); font-size: 1.05rem;">The Concurrency Flaw with Flows & VRs</div>
+                    <div class="card-body">
+                        <p>Validation Rules and Flows evaluate data against the <strong>start-of-transaction snapshot</strong>. If User A and User B both submit for the last seat at 12:00:00.000:</p>
+                        <ul class="feature-list" style="margin-top: 10px;">
+                            <li>Both transactions read <code>Available_Seats__c = 1</code>.</li>
+                            <li>Both transactions evaluate the quota check as <strong>Valid</strong>.</li>
+                            <li>Both insert registrations $\rightarrow$ <strong>Venue is oversold by 1 seat!</strong></li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-title" style="color: var(--accent-emerald); font-size: 1.05rem;">Our Apex Row-Level Locking Architecture</div>
+                    <div class="code-snippet">
+<span class="code-cm">// RegistrationTriggerHandler.cls</span>
+<span class="code-kw">Map</span>&lt;Id, Ticket_Type__c&gt; locked = <span class="code-kw">new Map</span>&lt;Id, Ticket_Type__c&gt;([
+    <span class="code-kw">SELECT</span> Id, Quota__c, Booked_Seats__c, Status__c 
+    <span class="code-kw">FROM</span> Ticket_Type__c 
+    <span class="code-kw">WHERE</span> Id <span class="code-kw">IN</span> :ticketTypeIds 
+    <span class="code-kw">FOR UPDATE</span>  <span class="code-cm">// &lt;-- ATOMIC ROW LOCK</span>
+]);
+                    </div>
+                    <div class="card-body" style="margin-top: 10px;">
+                        <p style="font-size: 0.85rem;">
+                            <code>FOR UPDATE</code> forces the database to block Thread B until Thread A commits. Thread A claims the seat; Thread B wakes up, detects <code>Available = 0</code>, and receives a clean <strong>"Sold Out"</strong> exception!
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- SLIDE 9: Automated Post-Booking & Scheduled Flows -->
+        <section class="slide" data-slide="9">
+            <div class="slide-header">
+                <div class="slide-tag">09 • Lifecycle Automation</div>
+                <h2 class="slide-title">Post-Booking & Bulkified Scheduled Flows</h2>
+                <p class="slide-subtitle">Decoupled execution engine guaranteeing ticket delivery and governor-limit-safe background batches.</p>
+            </div>
+            <div class="grid-2">
+                <div class="card">
+                    <div class="card-title" style="color: #fff; font-size: 1.05rem;">Record-Triggered Flow (Post-Registration)</div>
+                    <ul class="feature-list" style="margin-top: 10px;">
+                        <li>Fires <strong>After Save</strong> when status changes to <code>Confirmed</code>.</li>
+                        <li><strong>Step 1:</strong> Creates <code>Ticket__c</code> record with status <code>Active</code>.</li>
+                        <li><strong>Step 2:</strong> Logs completed audit <code>Task</code> on the Event record.</li>
+                        <li><strong>Step 3:</strong> Dispatches Ticket Confirmation Email containing Ticket ID.</li>
+                        <li><strong>Fault Handling:</strong> Includes <code>&lt;faultConnector&gt;</code> setting <code>Confirmation_Status__c = 'Failed'</code> if delivery fails.</li>
+                    </ul>
+                </div>
+
+                <div class="card">
+                    <div class="card-title" style="color: var(--accent-purple); font-size: 1.05rem;">Bulkified Scheduled Background Flows</div>
+                    <ul class="feature-list" style="margin-top: 10px;">
+                        <li><strong>Zero SOQL in Loop:</strong> Initial query filters <code>Feedback_Submitted__c = false</code> directly upfront, eliminating in-loop database calls.</li>
+                        <li><strong>Batch Email Delivery:</strong> In-memory string collection accumulates all recipient addresses and fires <strong>one single email invocation</strong> outside the loop.</li>
+                        <li><strong>Governor Limit Proof:</strong> Consumes <strong>1 of 10</strong> email calls, completely impervious to the 10-email-per-transaction limit!</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <!-- SLIDE 10: Security Model & Permissions -->
+        <section class="slide" data-slide="10">
+            <div class="slide-header">
+                <div class="slide-tag">10 • Platform Governance</div>
+                <h2 class="slide-title">Security Model, OWD & Persona Matrix</h2>
+                <p class="slide-subtitle">Role-based access control safeguarding financial data and enforcing organizational boundaries.</p>
+            </div>
+            <div class="grid-2">
+                <div class="card">
+                    <div class="card-title" style="color: var(--sf-blue-light); font-size: 1.05rem;">Organization-Wide Defaults (OWD)</div>
+                    <table class="table-custom">
+                        <thead>
+                            <tr>
+                                <th>Object</th>
+                                <th>OWD Setting</th>
+                                <th>Visibility Strategy</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><code>Event__c</code></td>
+                                <td>Public Read Only</td>
+                                <td>Visible to all for browsing; editable only by Organizer/Manager</td>
+                            </tr>
+                            <tr>
+                                <td><code>Registration__c</code></td>
+                                <td>Private</td>
+                                <td>Users see only their own registrations (or assigned team)</td>
+                            </tr>
+                            <tr>
+                                <td><code>Payment__c</code></td>
+                                <td>Private</td>
+                                <td>Strictly restricted to Event Managers and Finance auditors</td>
+                            </tr>
+                            <tr>
+                                <td><code>Venue__c</code></td>
+                                <td>Public Read Only</td>
+                                <td>Shared reference catalog across all organizers</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="card">
+                    <div class="card-title" style="color: var(--accent-amber); font-size: 1.05rem;">User Persona Matrix</div>
+                    <ul class="feature-list" style="margin-top: 10px;">
+                        <li><strong>Event Organizer:</strong> Can propose events, set quotas, and view registrations for their own events. Cannot approve their own high-budget proposals.</li>
+                        <li><strong>Event Manager:</strong> Has elevated managerial permissions. Reviews and approves proposed budgets, manages venue contracts, and reviews financial payments.</li>
+                        <li><strong>Attendee (Public Portal):</strong> Can search published events, register, submit payments, view tickets, and submit feedback. Zero access to backend CRM configs.</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <!-- SLIDE 11: Business Impact & Q&A -->
+        <section class="slide" data-slide="11">
+            <div class="hero-center">
+                <span class="metric-pill pill-success">Enterprise Readiness & Impact</span>
+                <h2 class="hero-title" style="font-size: 2.8rem;">Project Impact & Key Takeaways</h2>
+                <div class="grid-3" style="width: 100%; max-width: 900px; margin-top: 16px;">
+                    <div class="card" style="text-align: center; padding: 20px;">
+                        <div style="font-size: 2.4rem; font-weight: 800; color: #34d399; font-family: 'Outfit';">100%</div>
+                        <div style="font-weight: 600; color: #fff; margin-top: 4px;">Zero Oversell Guarantee</div>
+                        <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 4px;">Enforced by atomic row locks</div>
+                    </div>
+                    <div class="card" style="text-align: center; padding: 20px;">
+                        <div style="font-size: 2.4rem; font-weight: 800; color: #38bdf8; font-family: 'Outfit';">100%</div>
+                        <div style="font-weight: 600; color: #fff; margin-top: 4px;">Automated Fulfillment</div>
+                        <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 4px;">Tickets & reminders without manual effort</div>
+                    </div>
+                    <div class="card" style="text-align: center; padding: 20px;">
+                        <div style="font-size: 2.4rem; font-weight: 800; color: #a78bfa; font-family: 'Outfit';">1 of 10</div>
+                        <div style="font-weight: 600; color: #fff; margin-top: 4px;">Governor Limit Consumption</div>
+                        <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 4px;">Fully bulkified enterprise flows</div>
+                    </div>
+                </div>
+                <div style="margin-top: 28px;">
+                    <h3 style="font-family: 'Outfit', sans-serif; font-size: 1.4rem; color: #fff;">Thank You! Open for Questions.</h3>
+                    <p style="color: var(--text-muted); font-size: 0.9rem; margin-top: 4px;">Priyanshu Kumar • Event Management CRM on Salesforce</p>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Footer Bar -->
+    <footer class="footer-bar">
+        <div class="keys-hint">
+            <span><span class="key-badge">◀</span> <span class="key-badge">▶</span> Navigate</span>
+            <span><span class="key-badge">Space</span> Next</span>
+            <span><span class="key-badge">F</span> Fullscreen</span>
+        </div>
+        <div>Salesforce Event Management CRM • Architecture Presentation Deck</div>
+    </footer>
+
+    <script>
+        const slides = document.querySelectorAll('.slide');
+        const totalSlides = slides.length;
+        let currentSlide = 1;
+
+        const slideIndicator = document.getElementById('slideIndicator');
+        const progressBar = document.getElementById('progressBar');
+        const prevBtn = document.getElementById('prevBtn');
+        const nextBtn = document.getElementById('nextBtn');
+        const fullscreenBtn = document.getElementById('fullscreenBtn');
+
+        function updateSlide(newIndex) {
+            if (newIndex < 1 || newIndex > totalSlides) return;
+            slides[currentSlide - 1].classList.remove('active');
+            currentSlide = newIndex;
+            slides[currentSlide - 1].classList.add('active');
+
+            // Update Header Indicator
+            slideIndicator.textContent = `${String(currentSlide).padStart(2, '0')} / ${String(totalSlides).padStart(2, '0')}`;
+            
+            // Update Progress Bar
+            const percentage = ((currentSlide - 1) / (totalSlides - 1)) * 100;
+            progressBar.style.width = `${percentage}%`;
+
+            prevBtn.style.opacity = currentSlide === 1 ? '0.4' : '1';
+            nextBtn.style.opacity = currentSlide === totalSlides ? '0.4' : '1';
+        }
+
+        prevBtn.addEventListener('click', () => updateSlide(currentSlide - 1));
+        nextBtn.addEventListener('click', () => updateSlide(currentSlide + 1));
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowRight' || e.key === ' ') {
+                e.preventDefault();
+                updateSlide(currentSlide + 1);
+            } else if (e.key === 'ArrowLeft') {
+                e.preventDefault();
+                updateSlide(currentSlide - 1);
+            } else if (e.key === 'f' || e.key === 'F') {
+                toggleFullscreen();
+            }
+        });
+
+        function toggleFullscreen() {
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen().catch(err => console.log(err));
+            } else {
+                document.exitFullscreen();
+            }
+        }
+        fullscreenBtn.addEventListener('click', toggleFullscreen);
+
+        // Initialize first slide state
+        updateSlide(1);
+    </script>
+</body>
+</html>

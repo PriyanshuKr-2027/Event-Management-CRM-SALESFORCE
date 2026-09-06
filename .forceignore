@@ -28,5 +28,8 @@ docxx
 **/scratch/**
 scratch/**
 scratch
+presentation/**
+**/presentation/**
+presentation
 **/jsconfig.json
 **/.eslintrc.json
