@@ -138,10 +138,12 @@ Instead of creating heavy custom profiles with hard-to-maintain permissions, we 
 - **Visualforce Access:** `PrintableTicket`.
 
 #### 4. `Event_Finance_Permissions` (`permissionsets/Event_Finance_Permissions.permissionset-meta.xml`)
-- **OLS:** Read & Edit on `Payment__c`, Read on `Event__c`, `Registration__c`, `Ticket_Type__c`.
+- **OLS:** Read & Edit on `Payment__c`; Read on `Event__c`, `Registration__c`, `Ticket_Type__c`.
 - **FLS:** Read/Edit on `Payment__c.Transaction_Id__c`, `Payment_Status__c`, `Payment_Method__c`, `Payment_Date__c`, `Total_Amount__c`, `Discount_Code__c`; Read-only on `Event__c.Proposed_Budget__c`, `Approved_By__c`.
 - **Custom Metadata Access:** `Approval_Matrix__mdt`, `Payment_Gateway_Config__mdt`.
-- **Tabs:** `Registration__c`.
+- **Apex Access:** `EventApprovalService`, `OrganizerDashboardController`.
+- **Tabs:** `Organizer_Dashboard`, `Event__c`, `Payment__c`, `Registration__c`.
+- **Reports & Dashboards Access:** Direct View access to `Event Reports` and `Event Dashboards` folders for financial tracking, revenue reconciliation, and budget metrics.
 
 #### 5. `Event_Speaker_Coordinator_Permissions` (`permissionsets/Event_Speaker_Coordinator_Permissions.permissionset-meta.xml`)
 - **OLS:** Full CRUD on `Speaker__c`; Read on `Event__c`, `Venue__c`.
@@ -152,6 +154,8 @@ Instead of creating heavy custom profiles with hard-to-maintain permissions, we 
 - **OLS:** Create & Edit on `Attendee__c`, `Registration__c`, `Payment__c`, `Feedback__c`; Read-only on published `Event__c`, `Venue__c`, `Ticket_Type__c`.
 - **FLS:** Access to self-service booking fields, feedback rating, and payment submission details.
 - **Custom Metadata Access:** `Payment_Gateway_Config__mdt` (to retrieve merchant VPA, gateway name, and sandbox currency).
+- **Application & Tab Access:** Restricted to the `Event Portal` app (`Event_Booking` tab only). `Event_Management` application is set to `visible: false`. `Organizer_Dashboard` tab visibility is explicitly set to `None`.
+- **Reports & Dashboards Restriction:** Strictly blocked from analytics. Attendees have no assigned staff role, blocking them from the `Event Reports` and `Event Dashboards` folders. Base profile permissions disallow running or viewing reports.
 
 ---
 

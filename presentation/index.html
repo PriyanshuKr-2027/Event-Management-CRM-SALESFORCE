@@ -494,7 +494,7 @@
             <span class="sf-badge">Salesforce</span>
             <span>Event Management CRM</span>
         </div>
-        <div class="slide-counter" id="slideIndicator">01 / 11</div>
+        <div class="slide-counter" id="slideIndicator">01 / 15</div>
         <div class="controls">
             <button class="btn-icon" id="prevBtn" title="Previous Slide (Left Arrow)">◀</button>
             <button class="btn-icon" id="nextBtn" title="Next Slide (Right Arrow / Space)">▶</button>
@@ -892,40 +892,270 @@
             </div>
         </section>
 
-        <!-- SLIDE 9: Automated Post-Booking & Scheduled Flows -->
+        <!-- SLIDE 9: Flow 1 of 5 — Event Creation Screen Flow -->
         <section class="slide" data-slide="9">
             <div class="slide-header">
-                <div class="slide-tag">09 • Lifecycle Automation</div>
-                <h2 class="slide-title">Post-Booking & Bulkified Scheduled Flows</h2>
-                <p class="slide-subtitle">Decoupled execution engine guaranteeing ticket delivery and governor-limit-safe background batches.</p>
+                <div class="slide-tag">Flow 1 of 5 • Screen Flow</div>
+                <h2 class="slide-title">Event Creation Screen Flow</h2>
+                <p class="slide-subtitle">Guided internal wizard for Organizers with embedded dynamic ticket tiers and approval routing.</p>
             </div>
-            <div class="grid-2">
-                <div class="card">
-                    <div class="card-title" style="color: #fff; font-size: 1.05rem;">Record-Triggered Flow (Post-Registration)</div>
-                    <ul class="feature-list" style="margin-top: 10px;">
-                        <li>Fires <strong>After Save</strong> when status changes to <code>Confirmed</code>.</li>
-                        <li><strong>Step 1:</strong> Creates <code>Ticket__c</code> record with status <code>Active</code>.</li>
-                        <li><strong>Step 2:</strong> Logs completed audit <code>Task</code> on the Event record.</li>
-                        <li><strong>Step 3:</strong> Dispatches Ticket Confirmation Email containing Ticket ID.</li>
-                        <li><strong>Fault Handling:</strong> Includes <code>&lt;faultConnector&gt;</code> setting <code>Confirmation_Status__c = 'Failed'</code> if delivery fails.</li>
-                    </ul>
+            <div class="grid-2" style="align-items: stretch;">
+                <!-- LEFT: Flow Photo / Diagram Box -->
+                <div class="card" style="padding: 14px; display: flex; flex-direction: column; overflow: hidden; background: rgba(10, 14, 26, 0.75);">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                        <span style="font-family: 'JetBrains Mono', monospace; font-size: 0.75rem; color: var(--sf-blue-light); font-weight: 600;">FLOW BUILDER CANVAS</span>
+                        <span class="metric-pill pill-purple">Screen Flow • Active</span>
+                    </div>
+                    <div class="screenshot-box" style="flex: 1; min-height: 380px; margin-top: 0; background: rgba(0, 0, 0, 0.45); border: 1px solid rgba(255,255,255,0.1);">
+                        <img src="screenshots/flow-1-event-creation.png" alt="Event Creation Screen Flow" onerror="this.onerror=null; this.src='visuals/flow_01_event_creation.png';" style="width: 100%; height: 100%; object-fit: contain; padding: 6px;">
+                    </div>
                 </div>
 
-                <div class="card">
-                    <div class="card-title" style="color: var(--accent-purple); font-size: 1.05rem;">Bulkified Scheduled Background Flows</div>
-                    <ul class="feature-list" style="margin-top: 10px;">
-                        <li><strong>Zero SOQL in Loop:</strong> Initial query filters <code>Feedback_Submitted__c = false</code> directly upfront, eliminating in-loop database calls.</li>
-                        <li><strong>Batch Email Delivery:</strong> In-memory string collection accumulates all recipient addresses and fires <strong>one single email invocation</strong> outside the loop.</li>
-                        <li><strong>Governor Limit Proof:</strong> Consumes <strong>1 of 10</strong> email calls, completely impervious to the 10-email-per-transaction limit!</li>
-                    </ul>
+                <!-- RIGHT: Flow Overview -->
+                <div class="card" style="display: flex; flex-direction: column; justify-content: space-between;">
+                    <div>
+                        <div class="card-header" style="margin-bottom: 10px;">
+                            <div class="card-icon" style="background: rgba(139, 92, 246, 0.15); color: #a78bfa; border-color: rgba(139, 92, 246, 0.3);">⚡</div>
+                            <div>
+                                <div class="card-title" style="font-size: 1.1rem;">Flow Architecture & Functional Overview</div>
+                                <div style="font-size: 0.76rem; color: var(--text-muted); font-family: 'JetBrains Mono', monospace;">API Name: Event_Creation_Screen_Flow</div>
+                            </div>
+                        </div>
+
+                        <div style="margin-bottom: 12px; padding: 10px 14px; background: rgba(139, 92, 246, 0.08); border-left: 3px solid #a78bfa; border-radius: 6px; font-size: 0.85rem; color: #cbd5e1;">
+                            <strong>Execution Trigger:</strong> Launched when an Event Organizer clicks the <code>+ Create Event</code> quick action button on the Organizer Dashboard LWC.
+                        </div>
+
+                        <ul class="feature-list" style="font-size: 0.88rem;">
+                            <li><strong>Screen 1 (Basic Details):</strong> Captures Event Name, Category (9 picklist options), Start & End DateTimes, Venue lookup, and Proposed Budget.</li>
+                            <li><strong>Screen 2 (Dynamic Tier Collector):</strong> Embeds custom <code>ticketTypeCollector</code> LWC to configure $N$ dynamic ticket tiers (VIP, Standard, Student) with quotas and prices.</li>
+                            <li><strong>Capacity Safety Check:</strong> Evaluates $\sum(\text{Ticket Quotas}) \le \text{Venue Capacity}$ before record commit.</li>
+                            <li><strong>Batch Record Creation:</strong> Inserts parent <code>Event__c</code> and loops to insert child <code>Ticket_Type__c</code> records.</li>
+                            <li><strong>Dynamic Budget Routing:</strong> Calls <code>EventApprovalService.cls</code> against <code>Approval_Matrix__mdt</code>. If budget $\le$ Category Auto-Limit $\rightarrow$ status = <code>Approved</code>; if higher $\rightarrow$ submits to Manager Approval Process and locks record.</li>
+                        </ul>
+                    </div>
+
+                    <div style="display: flex; gap: 10px; margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--border-card);">
+                        <span class="metric-pill pill-blue">Embedded LWC Integration</span>
+                        <span class="metric-pill pill-success">Invocable Apex Routing</span>
+                        <span class="metric-pill pill-purple">Approval Process Submit</span>
+                    </div>
                 </div>
             </div>
         </section>
 
-        <!-- SLIDE 10: Security Model & Permissions -->
+        <!-- SLIDE 10: Flow 2 of 5 — Event Registration Screen Flow -->
         <section class="slide" data-slide="10">
             <div class="slide-header">
-                <div class="slide-tag">10 • Platform Governance</div>
+                <div class="slide-tag">Flow 2 of 5 • Screen Flow</div>
+                <h2 class="slide-title">Event Registration Screen Flow</h2>
+                <p class="slide-subtitle">Internal / Registration Desk guided booking flow with deduplication and sold-out guards.</p>
+            </div>
+            <div class="grid-2" style="align-items: stretch;">
+                <!-- LEFT: Flow Photo / Diagram Box -->
+                <div class="card" style="padding: 14px; display: flex; flex-direction: column; overflow: hidden; background: rgba(10, 14, 26, 0.75);">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                        <span style="font-family: 'JetBrains Mono', monospace; font-size: 0.75rem; color: var(--sf-blue-light); font-weight: 600;">FLOW BUILDER CANVAS</span>
+                        <span class="metric-pill pill-purple">Screen Flow • Active</span>
+                    </div>
+                    <div class="screenshot-box" style="flex: 1; min-height: 380px; margin-top: 0; background: rgba(0, 0, 0, 0.45); border: 1px solid rgba(255,255,255,0.1);">
+                        <img src="screenshots/flow-2-event-registration.png" alt="Event Registration Screen Flow" onerror="this.onerror=null; this.src='visuals/flow_02_event_registration.png';" style="width: 100%; height: 100%; object-fit: contain; padding: 6px;">
+                    </div>
+                </div>
+
+                <!-- RIGHT: Flow Overview -->
+                <div class="card" style="display: flex; flex-direction: column; justify-content: space-between;">
+                    <div>
+                        <div class="card-header" style="margin-bottom: 10px;">
+                            <div class="card-icon" style="background: rgba(56, 189, 248, 0.15); color: #38bdf8; border-color: rgba(56, 189, 248, 0.3);">👤</div>
+                            <div>
+                                <div class="card-title" style="font-size: 1.1rem;">Flow Architecture & Functional Overview</div>
+                                <div style="font-size: 0.76rem; color: var(--text-muted); font-family: 'JetBrains Mono', monospace;">API Name: Event_Registration_Screen_Flow</div>
+                            </div>
+                        </div>
+
+                        <div style="margin-bottom: 12px; padding: 10px 14px; background: rgba(56, 189, 248, 0.08); border-left: 3px solid #38bdf8; border-radius: 6px; font-size: 0.85rem; color: #cbd5e1;">
+                            <strong>Execution Trigger:</strong> Launched by Registration Desk staff or internal agents to manually book tickets on behalf of walk-in attendees.
+                        </div>
+
+                        <ul class="feature-list" style="font-size: 0.88rem;">
+                            <li><strong>Ticket Availability Check:</strong> Queries selected <code>Ticket_Type__c</code> details. If <code>Available_Seats__c &le; 0</code>, branches immediately to a friendly "Sold Out" warning screen.</li>
+                            <li><strong>Attendee Deduplication:</strong> Queries <code>Attendee__c</code> by email. If found, reuses existing customer profile; if new, dynamically inserts a new attendee record.</li>
+                            <li><strong>Snapshot Price Reservation:</strong> Creates <code>Registration__c</code> linking Attendee, Event, and Ticket Type with status <code>Pending</code> and immutable <code>Booked_Price__c</code> snapshot.</li>
+                            <li><strong>Payment Collection Screen:</strong> Allows staff to record payment method (Cash, UPI, Card) and transaction reference number.</li>
+                            <li><strong>Confirmation Summary:</strong> Displays issued booking reference and directions for pass collection.</li>
+                        </ul>
+                    </div>
+
+                    <div style="display: flex; gap: 10px; margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--border-card);">
+                        <span class="metric-pill pill-blue">Zero Duplicate Attendees</span>
+                        <span class="metric-pill pill-success">Live Quota Protection</span>
+                        <span class="metric-pill pill-purple">Walk-in Support</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- SLIDE 11: Flow 3 of 5 — Post-Registration Automation -->
+        <section class="slide" data-slide="11">
+            <div class="slide-header">
+                <div class="slide-tag">Flow 3 of 5 • Record-Triggered Flow</div>
+                <h2 class="slide-title">Post-Registration Automation Engine</h2>
+                <p class="slide-subtitle">After-Save execution engine generating ticket passes, audit tasks, and confirmation emails with fault paths.</p>
+            </div>
+            <div class="grid-2" style="align-items: stretch;">
+                <!-- LEFT: Flow Photo / Diagram Box -->
+                <div class="card" style="padding: 14px; display: flex; flex-direction: column; overflow: hidden; background: rgba(10, 14, 26, 0.75);">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                        <span style="font-family: 'JetBrains Mono', monospace; font-size: 0.75rem; color: var(--sf-blue-light); font-weight: 600;">FLOW BUILDER CANVAS</span>
+                        <span class="metric-pill pill-blue">Record-Triggered • After Save</span>
+                    </div>
+                    <div class="screenshot-box" style="flex: 1; min-height: 380px; margin-top: 0; background: rgba(0, 0, 0, 0.45); border: 1px solid rgba(255,255,255,0.1);">
+                        <img src="screenshots/flow-3-post-registration.png" alt="Post Registration Automation Flow" onerror="this.onerror=null; this.src='visuals/flow_03_post_registration_automation.png';" style="width: 100%; height: 100%; object-fit: contain; padding: 6px;">
+                    </div>
+                </div>
+
+                <!-- RIGHT: Flow Overview -->
+                <div class="card" style="display: flex; flex-direction: column; justify-content: space-between;">
+                    <div>
+                        <div class="card-header" style="margin-bottom: 10px;">
+                            <div class="card-icon" style="background: rgba(16, 185, 129, 0.15); color: #34d399; border-color: rgba(16, 185, 129, 0.3);">🎫</div>
+                            <div>
+                                <div class="card-title" style="font-size: 1.1rem;">Flow Architecture & Functional Overview</div>
+                                <div style="font-size: 0.76rem; color: var(--text-muted); font-family: 'JetBrains Mono', monospace;">API Name: Post_Registration_Automation</div>
+                            </div>
+                        </div>
+
+                        <div style="margin-bottom: 12px; padding: 10px 14px; background: rgba(16, 185, 129, 0.08); border-left: 3px solid #34d399; border-radius: 6px; font-size: 0.85rem; color: #cbd5e1;">
+                            <strong>Execution Trigger:</strong> Fires <strong>After Save</strong> automatically when <code>Registration__c.Registration_Status__c</code> is created or updated to <code>Confirmed</code>.
+                        </div>
+
+                        <ul class="feature-list" style="font-size: 0.88rem;">
+                            <li><strong>Step 1 (Generate Ticket Record):</strong> Creates <code>Ticket__c</code> record with status <code>Active</code>, generating unique autonumber pass key <code>TKT-{00000}</code>.</li>
+                            <li><strong>Step 2 (Audit Task Logging):</strong> Creates a completed <code>Task</code> record linked to the parent <code>Event__c</code>, providing a chronological audit trail in Activity History.</li>
+                            <li><strong>Step 3 (Dispatch Confirmation Email):</strong> Invokes <code>emailSimple</code> core action delivering event date, venue directions, and printable ticket link directly to the attendee's email.</li>
+                            <li><strong>Step 4 (Fulfillment Status Update):</strong> Updates <code>Confirmation_Status__c = 'Sent'</code> on the triggering registration record.</li>
+                            <li><strong>Enterprise Fault Handling:</strong> Every DML and email action connects to a dedicated <code>&lt;faultConnector&gt;</code> that sets <code>Confirmation_Status__c = 'Failed'</code> for admin alert.</li>
+                        </ul>
+                    </div>
+
+                    <div style="display: flex; gap: 10px; margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--border-card);">
+                        <span class="metric-pill pill-success">100% Automated Fulfillment</span>
+                        <span class="metric-pill pill-blue">Zero Silent Failures</span>
+                        <span class="metric-pill pill-purple">Audit Trail Task</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- SLIDE 12: Flow 4 of 5 — 24h Event Reminder Scheduled Flow -->
+        <section class="slide" data-slide="12">
+            <div class="slide-header">
+                <div class="slide-tag">Flow 4 of 5 • Scheduled Flow</div>
+                <h2 class="slide-title">24h Event Reminder Scheduled Flow</h2>
+                <p class="slide-subtitle">Bulkified background batch job dispatching automated pre-event reminder notices.</p>
+            </div>
+            <div class="grid-2" style="align-items: stretch;">
+                <!-- LEFT: Flow Photo / Diagram Box -->
+                <div class="card" style="padding: 14px; display: flex; flex-direction: column; overflow: hidden; background: rgba(10, 14, 26, 0.75);">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                        <span style="font-family: 'JetBrains Mono', monospace; font-size: 0.75rem; color: var(--sf-blue-light); font-weight: 600;">FLOW BUILDER CANVAS</span>
+                        <span class="metric-pill pill-success">Scheduled Flow • Bulkified</span>
+                    </div>
+                    <div class="screenshot-box" style="flex: 1; min-height: 380px; margin-top: 0; background: rgba(0, 0, 0, 0.45); border: 1px solid rgba(255,255,255,0.1);">
+                        <img src="screenshots/flow-4-event-reminder.png" alt="Event Reminder Scheduled Flow" onerror="this.onerror=null; this.src='visuals/flow_04_event_reminder_scheduled.png';" style="width: 100%; height: 100%; object-fit: contain; padding: 6px;">
+                    </div>
+                </div>
+
+                <!-- RIGHT: Flow Overview -->
+                <div class="card" style="display: flex; flex-direction: column; justify-content: space-between;">
+                    <div>
+                        <div class="card-header" style="margin-bottom: 10px;">
+                            <div class="card-icon" style="background: rgba(245, 158, 11, 0.15); color: #fbbf24; border-color: rgba(245, 158, 11, 0.3);">⏰</div>
+                            <div>
+                                <div class="card-title" style="font-size: 1.1rem;">Flow Architecture & Functional Overview</div>
+                                <div style="font-size: 0.76rem; color: var(--text-muted); font-family: 'JetBrains Mono', monospace;">API Name: Event_Reminder_Scheduled_Flow</div>
+                            </div>
+                        </div>
+
+                        <div style="margin-bottom: 12px; padding: 10px 14px; background: rgba(245, 158, 11, 0.08); border-left: 3px solid #fbbf24; border-radius: 6px; font-size: 0.85rem; color: #cbd5e1;">
+                            <strong>Execution Trigger:</strong> Runs automatically on a daily schedule in the background, targeting all events starting in exactly 24 hours.
+                        </div>
+
+                        <ul class="feature-list" style="font-size: 0.88rem;">
+                            <li><strong>Target Event Query:</strong> Retrieves active events whose <code>Start_Date_Time__c</code> falls within the upcoming 24-hour window.</li>
+                            <li><strong>Get Confirmed Attendees:</strong> Queries related <code>Registration__c</code> records with <code>Registration_Status__c = 'Confirmed'</code>.</li>
+                            <li><strong>Bulkified In-Memory Loop:</strong> Iterates through confirmed registrations and adds each attendee's email to an in-memory string collection variable (<code>recipientEmailList</code>).</li>
+                            <li><strong>Zero Actions Inside Loop:</strong> Completely eliminates SOQL, DML, and email invocations inside the loop, preventing governor limit crashes.</li>
+                            <li><strong>Single Batch Email Send:</strong> Exits the loop and fires <code>emailSimple</code> <strong>ONCE</strong> with the full list of recipient emails, consuming only <strong>1 of 10</strong> allowed email invocations!</li>
+                        </ul>
+                    </div>
+
+                    <div style="display: flex; gap: 10px; margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--border-card);">
+                        <span class="metric-pill pill-success">Consumes 1 of 10 Email Limits</span>
+                        <span class="metric-pill pill-blue">Zero In-Loop DML/SOQL</span>
+                        <span class="metric-pill pill-purple">Scales to 500+ Attendees</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- SLIDE 13: Flow 5 of 5 — Post-Event Feedback Scheduled Flow -->
+        <section class="slide" data-slide="13">
+            <div class="slide-header">
+                <div class="slide-tag">Flow 5 of 5 • Scheduled Flow</div>
+                <h2 class="slide-title">Post-Event Feedback Scheduled Flow</h2>
+                <p class="slide-subtitle">Automated survey distribution batch job targeting concluded events with deduplication filters.</p>
+            </div>
+            <div class="grid-2" style="align-items: stretch;">
+                <!-- LEFT: Flow Photo / Diagram Box -->
+                <div class="card" style="padding: 14px; display: flex; flex-direction: column; overflow: hidden; background: rgba(10, 14, 26, 0.75);">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                        <span style="font-family: 'JetBrains Mono', monospace; font-size: 0.75rem; color: var(--sf-blue-light); font-weight: 600;">FLOW BUILDER CANVAS</span>
+                        <span class="metric-pill pill-success">Scheduled Flow • Bulkified</span>
+                    </div>
+                    <div class="screenshot-box" style="flex: 1; min-height: 380px; margin-top: 0; background: rgba(0, 0, 0, 0.45); border: 1px solid rgba(255,255,255,0.1);">
+                        <img src="screenshots/flow-5-post-event-feedback.png" alt="Post Event Feedback Flow" onerror="this.onerror=null; this.src='visuals/flow_05_post_event_feedback_scheduled.png';" style="width: 100%; height: 100%; object-fit: contain; padding: 6px;">
+                    </div>
+                </div>
+
+                <!-- RIGHT: Flow Overview -->
+                <div class="card" style="display: flex; flex-direction: column; justify-content: space-between;">
+                    <div>
+                        <div class="card-header" style="margin-bottom: 10px;">
+                            <div class="card-icon" style="background: rgba(244, 63, 94, 0.15); color: #fb7185; border-color: rgba(244, 63, 94, 0.3);">⭐</div>
+                            <div>
+                                <div class="card-title" style="font-size: 1.1rem;">Flow Architecture & Functional Overview</div>
+                                <div style="font-size: 0.76rem; color: var(--text-muted); font-family: 'JetBrains Mono', monospace;">API Name: Post_Event_Feedback_Scheduled_Flow</div>
+                            </div>
+                        </div>
+
+                        <div style="margin-bottom: 12px; padding: 10px 14px; background: rgba(244, 63, 94, 0.08); border-left: 3px solid #fb7185; border-radius: 6px; font-size: 0.85rem; color: #cbd5e1;">
+                            <strong>Execution Trigger:</strong> Runs automatically on a daily schedule in the background, targeting all events that concluded 10 hours ago (<code>End_Date_Time__c &lt; NOW()</code>).
+                        </div>
+
+                        <ul class="feature-list" style="font-size: 0.88rem;">
+                            <li><strong>Target Concluded Event Query:</strong> Retrieves events whose end date has passed and whose lifecycle has completed.</li>
+                            <li><strong>Upfront Anti-Spam Filter:</strong> Queries confirmed registrations filtering <code>Feedback_Submitted__c = false</code> directly in the initial SOQL condition (never spams attendees who already gave feedback!).</li>
+                            <li><strong>In-Memory String Accumulator:</strong> Gathers pending reviewer emails into an in-memory collection array with zero database overhead.</li>
+                            <li><strong>Single Batch Survey Dispatch:</strong> Sends one batch email containing the satisfaction survey link (collecting 1-5 star ratings for Overall, Venue, and Speaker experience).</li>
+                            <li><strong>Feedback Lock Enforcement:</strong> Once submitted, the system flags <code>Feedback_Submitted__c = TRUE</code>, enforcing our strict one-review-per-attendee rule.</li>
+                        </ul>
+                    </div>
+
+                    <div style="display: flex; gap: 10px; margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--border-card);">
+                        <span class="metric-pill pill-success">Zero Duplicate Surveys</span>
+                        <span class="metric-pill pill-blue">1-Batch Governor Safe</span>
+                        <span class="metric-pill pill-purple">Executive NPS Analytics</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- SLIDE 14: Security Model & Permissions -->
+        <section class="slide" data-slide="14">
+            <div class="slide-header">
+                <div class="slide-tag">14 • Platform Governance</div>
                 <h2 class="slide-title">Security Model, OWD & Persona Matrix</h2>
                 <p class="slide-subtitle">Role-based access control safeguarding financial data and enforcing organizational boundaries.</p>
             </div>
@@ -976,8 +1206,8 @@
             </div>
         </section>
 
-        <!-- SLIDE 11: Business Impact & Q&A -->
-        <section class="slide" data-slide="11">
+        <!-- SLIDE 15: Business Impact & Q&A -->
+        <section class="slide" data-slide="15">
             <div class="hero-center">
                 <span class="metric-pill pill-success">Enterprise Readiness & Impact</span>
                 <h2 class="hero-title" style="font-size: 2.8rem;">Project Impact & Key Takeaways</h2>

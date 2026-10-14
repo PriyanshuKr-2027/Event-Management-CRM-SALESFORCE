@@ -386,7 +386,7 @@ flowchart TD
     subgraph ADMIN["1. SYSTEM ADMINISTRATOR &amp; PLATFORM SETUP"]
         A1([Start: Organization Setup]) --> A2[Define Baseline OWD:<br/>Event__c = Private<br/>Venue__c = Public Read Only<br/>Attendee__c = Private<br/>Children = Controlled by Parent]
         A2 --> A3[Configure Role Hierarchy:<br/>Manager &gt; Organizer / Finance &gt; Reg Team]
-        A3 --> A4[Setup Custom Metadata Types:<br/>Approval_Matrix__mdt - Category Limits<br/>Payment_Gateway_Config__mdt - UPI VPA]
+        A3 --> A4[Setup Custom Metadata Types:<br/>Approval_Settings__mdt - 2 Lakh Threshold<br/>Payment_Gateway_Config__mdt - UPI VPA]
         A4 --> A5[Create Physical Venues &amp;<br/>Set Venue_Capacity__c Safety Ceiling]
     end
 
@@ -406,28 +406,23 @@ flowchart TD
     A5 -.-> O5
 
     %% 3. APPROVAL ENGINE
-    subgraph APPROVAL["3. DYNAMIC MULTI-TIER CATEGORY APPROVAL ENGINE"]
-        AP1[EventApprovalService.cls<br/>Evaluates Category Ceilings via Approval_Matrix__mdt]
-        O8 --> AP1
+    subgraph APPROVAL["3. EVENT BUDGET APPROVAL PROCESS (2 LAKHS / ₹2,00,000 THRESHOLD)"]
+        AP_DEC{Proposed_Budget__c &gt; ₹2,00,000?<br/>(Approval_Settings__mdt.Default_Threshold)}
+        O8 --> AP_DEC
         
-        AP1 --> D_AUTO{Proposed Budget &lt;=<br/>Category Auto-Limit?}
+        AP_DEC -- "NO (Budget &lt;= 2 Lakhs)" --> AP_OK[Zero-Touch Auto-Approval!<br/>Approval_Status__c = Approved]
         
-        D_AUTO -- "YES (Tier 1: Auto-Approved)" --> AP_OK[Approval_Status__c = Approved]
+        AP_DEC -- "YES (Budget &gt; 2 Lakhs)" --> AP_SUB[Submit to Event_Budget_Approval<br/>Approval_Status__c = Pending Approval<br/>Record Locked via AdminOnly]
         
-        D_AUTO -- "NO (Requires Review)" --> AP_SUB[Submit to Salesforce Approval Process<br/>Status = Pending Approval<br/>Record Locked]
+        AP_SUB --> AP_MGR[Assigned to Event Manager<br/>Role: Event_Manager]
         
-        AP_SUB --> D_ESC{Budget &gt; Manager Limit?}
-        D_ESC -- "YES (Tier 3)" --> AP_FIN[Flag Requires_Finance_Signoff = TRUE<br/>Escalate to Executive Signoff]
-        D_ESC -- "NO (Tier 2)" --> AP_MGR[Route to Event Manager Queue/User]
-        
-        AP_FIN --> D_DEC{Approver Decision}
-        AP_MGR --> D_DEC
+        AP_MGR --> D_DEC{Manager Decision}
         
         D_DEC -- "APPROVE" --> AP_OK
-        D_DEC -- "REJECT" --> AP_REJ[Approval_Status__c = Rejected<br/>Approver Enters Rejection_Reason__c]
+        D_DEC -- "REJECT" --> AP_REJ[Approval_Status__c = Rejected<br/>Approver Enters Mandatory Rejection_Reason__c]
         
         AP_REJ --> D_RESUB{Organizer Action}
-        D_RESUB -- "Modify Budget &amp; Resubmit" --> AP1
+        D_RESUB -- "Modify Budget &amp; Resubmit" --> AP_DEC
         D_RESUB -- "Cancel Event" --> AP_CANCEL([Approval_Status__c = Cancelled])
     end
 

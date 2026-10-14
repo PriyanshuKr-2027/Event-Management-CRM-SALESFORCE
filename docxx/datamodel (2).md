@@ -24,6 +24,114 @@ The Event Management CRM data model is built following Salesforce standard data 
 +------------------------------------+------------------------------------+-----------------------+
 ```
 
+### Relational Entity-Relationship Diagram (ERD)
+
+```
+     ┌──────────────┐
+     │   Venue__c   │
+     └──────┬───────┘
+            │ 1
+            │
+            │ N (Lookup)
+     ┌──────┴───────┐                         ┌──────────────┐
+     │   Event__c   │◀───────(Lookup)─────────│  Speaker__c  │
+     └──────┬───────┘                         └──────────────┘
+            │
+            ├─────────────────────────────────────────┐
+            │ 1 (Master-Detail)                       │ 1 (Master-Detail)
+            ▼ N                                       ▼ N
+     ┌──────────────┐                          ┌────────────────┐
+     │Ticket_Type__c│◀────────(Lookup)─────────│ Registration__c│◀──────(Lookup)──────┐
+     └──────────────┘                          └──────┬─────────┘                     │
+                                                      │                        ┌──────┴───────┐
+                                                      ├─────────────┬──────────┤  Attendee__c │
+                                                      │ 1 (M-D)     │ 1(Lookup)└──────┬───────┘
+                                                      ▼ N           ▼ N               │
+                                               ┌──────────────┐┌──────────────┐       │
+                                               │   Ticket__c  ││  Payment__c  │       │
+                                               └──────────────┘└──────────────┘       │
+                                                      ▲                               │
+                                                      │ (Lookup)                      │
+                                               ┌──────┴───────────────────────────────┘
+                                               │         Feedback__c                  │
+                                               │ (Lookups: Registration, Event, Attendee)
+                                               └──────────────────────────────────────┘
+```
+
+### Visual ER Diagram Flowchart (Mermaid)
+> 🔗 **Exported Transparent Visuals for Presentation:**  
+> • [`erd_diagram_flowchart.png`](file:///c:/Users/10pri/Downloads/evmos%20saleforce/presentation/visuals/erd_diagram_flowchart.png) (High-Res 2x Transparent PNG)  
+> • [`erd_diagram_flowchart.svg`](file:///c:/Users/10pri/Downloads/evmos%20saleforce/presentation/visuals/erd_diagram_flowchart.svg) (Infinite-Scale Vector SVG)
+
+```mermaid
+flowchart TD
+
+    %% Master Entities
+    VENUE["🏢 <b>Venue__c</b><br/><small>Physical Facility</small>"]
+    SPEAKER["🎙️ <b>Speaker__c</b><br/><small>Keynote Presenter</small>"]
+
+    %% Central Master
+    EVENT["⭐ <b>Event__c</b><br/><small><b>Master Event Record</b></small>"]
+
+    %% Tiers & Attendees
+    TICKET_TYPE["🎟️ <b>Ticket_Type__c</b><br/><small>Pricing & Quota Tier</small>"]
+    ATTENDEE["👤 <b>Attendee__c</b><br/><small>Participant Profile</small>"]
+
+    %% Transaction Junction
+    REGISTRATION["⚡ <b>Registration__c</b><br/><small><b>Booking Junction Record</b></small>"]
+
+    %% Children
+    TICKET["🎫 <b>Ticket__c</b><br/><small>Issued Entry Pass</small>"]
+    PAYMENT["💳 <b>Payment__c</b><br/><small>Financial Transaction</small>"]
+    FEEDBACK["📝 <b>Feedback__c</b><br/><small>Post-Event Review</small>"]
+
+    %% Relationships
+    VENUE ==> |"1:N (Lookup)"| EVENT
+    SPEAKER -.-> |"N:1 (Lookup)"| EVENT
+
+    EVENT ==> |"1:N (Master-Detail)<br/>Roll-Up Summaries"| TICKET_TYPE
+    EVENT ==> |"1:N (Master-Detail)<br/>Cascade Delete"| REGISTRATION
+
+    REGISTRATION -.-> |"N:1 (Lookup)"| TICKET_TYPE
+    REGISTRATION -.-> |"N:1 (Lookup)"| ATTENDEE
+
+    REGISTRATION ==> |"1:1 (Master-Detail)<br/>Digital Pass"| TICKET
+    PAYMENT -.-> |"N:1 (Lookup)"| REGISTRATION
+
+    FEEDBACK -.-> |"N:1 (Lookup)"| REGISTRATION
+    FEEDBACK -.-> |"N:1 (Lookup)"| EVENT
+    FEEDBACK -.-> |"N:1 (Lookup)"| ATTENDEE
+
+    classDef eventNode fill:#082f49,stroke:#38bdf8,stroke-width:2.5px,color:#f0f9ff;
+    classDef tierNode fill:#022c22,stroke:#34d399,stroke-width:2px,color:#ecfdf5;
+    classDef regNode fill:#451a03,stroke:#fbbf24,stroke-width:2.5px,color:#fffbeb;
+    classDef ticketNode fill:#2e1065,stroke:#a78bfa,stroke-width:2px,color:#fdf4ff;
+    classDef payNode fill:#4c0519,stroke:#fb7185,stroke-width:2px,color:#fff1f2;
+    classDef masterNode fill:#0f172a,stroke:#64748b,stroke-width:1.5px,color:#f8fafc;
+
+    class EVENT eventNode;
+    class TICKET_TYPE tierNode;
+    class REGISTRATION regNode;
+    class TICKET ticketNode;
+    class PAYMENT payNode;
+    class VENUE,SPEAKER,ATTENDEE,FEEDBACK masterNode;
+```
+
+### Relationship Summary Matrix:
+| Child Object | Parent Object | Relationship Type | Delete Cascade? | Enables Roll-Up Summary on Parent? |
+|---|---|---|---|:---:|
+| `Ticket_Type__c` | `Event__c` | **Master-Detail** | Cascade Delete | **YES** (`Total_Capacity__c`, `Booked_Seats__c`) |
+| `Registration__c` | `Event__c` | **Master-Detail** | Cascade Delete | **YES** |
+| `Registration__c` | `Ticket_Type__c` | **Lookup** | Restrict Delete | No (Maintained via `RegistrationTriggerHandler`) |
+| `Registration__c` | `Attendee__c` | **Lookup** | Set Null | No |
+| `Ticket__c` | `Registration__c` | **Master-Detail** | Cascade Delete | **YES** |
+| `Payment__c` | `Registration__c` | **Lookup** | Restrict Delete | No (Retained for financial audit) |
+| `Feedback__c` | `Registration__c` | **Lookup** | Restrict Delete | No |
+| `Feedback__c` | `Event__c` | **Lookup** | Set Null | No |
+| `Feedback__c` | `Attendee__c` | **Lookup** | Set Null | No |
+| `Speaker__c` | `Event__c` | **Lookup** | Set Null | No |
+| `Event__c` | `Venue__c` | **Lookup** | Restrict Delete | No |
+
 ---
 
 ## 2. Detailed Custom Objects Dictionary (9 Objects)

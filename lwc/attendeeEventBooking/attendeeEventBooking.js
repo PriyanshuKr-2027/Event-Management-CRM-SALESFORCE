@@ -29,7 +29,6 @@ export default class AttendeeEventBooking extends LightningElement {
     @track myTickets = [];
     @track isLoadingTickets = false;
 
-    flowInputVariables = [];
 
     connectedCallback() {
         this.loadEvents();
@@ -70,9 +69,6 @@ export default class AttendeeEventBooking extends LightningElement {
         return this.currentState === 'DETAIL';
     }
 
-    get isFlowState() {
-        return this.currentState === 'FLOW';
-    }
 
     get isPaymentState() {
         return this.currentState === 'PAYMENT';
@@ -428,54 +424,6 @@ export default class AttendeeEventBooking extends LightningElement {
         });
     }
 
-    handleProceedToFlow() {
-        if (!this.selectedEvent || !this.selectedTicketTypeId) {
-            return;
-        }
-
-        this.flowInputVariables = [
-            { name: 'recordId', type: 'String', value: this.selectedEvent.Id },
-            { name: 'selectedTicketTypeId', type: 'String', value: this.selectedTicketTypeId }
-        ];
-        this.currentState = 'FLOW';
-    }
-
-    /**
-     * @description Listens to status transitions inside Event_Registration_Screen_Flow.
-     */
-    handleFlowStatusChange(event) {
-        if (event.detail.status === 'FINISHED') {
-            const outputVariables = event.detail.outputVariables || [];
-            let outcome = null;
-            let regId = null;
-
-            outputVariables.forEach(v => {
-                if (v.name === 'outcome') {
-                    outcome = v.value;
-                } else if (v.name === 'newRegistrationId') {
-                    regId = v.value;
-                }
-            });
-
-            if (outcome === 'Success' && regId) {
-                this.newRegistrationId = regId;
-                this.currentState = 'PAYMENT';
-            } else if (outcome === 'SoldOut') {
-                this.currentState = 'SOLD_OUT';
-            } else if (outcome === 'Failed') {
-                this.showToast('Registration Error', 'Unable to complete reservation.', 'error');
-                this.currentState = 'DETAIL';
-            } else {
-                // Default fallback if finished with registration id
-                if (regId) {
-                    this.newRegistrationId = regId;
-                    this.currentState = 'PAYMENT';
-                } else {
-                    this.currentState = 'DETAIL';
-                }
-            }
-        }
-    }
 
     /**
      * @description Invoked when paymentQrVerification child fires paymentconfirmed.

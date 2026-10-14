@@ -230,20 +230,8 @@
         <visibility>Visible</visibility>
     </tabSettings>
     <tabSettings>
-        <tab>Event__c</tab>
-        <visibility>Visible</visibility>
-    </tabSettings>
-    <tabSettings>
-        <tab>Registration__c</tab>
-        <visibility>Visible</visibility>
-    </tabSettings>
-    <tabSettings>
-        <tab>Attendee__c</tab>
-        <visibility>Visible</visibility>
-    </tabSettings>
-    <tabSettings>
-        <tab>Event_Booking</tab>
-        <visibility>Visible</visibility>
+        <tab>Organizer_Dashboard</tab>
+        <visibility>None</visibility>
     </tabSettings>
 
     <!-- Apex Class Accesses -->
@@ -273,7 +261,7 @@
     </applicationVisibilities>
     <applicationVisibilities>
         <application>Event_Management</application>
-        <visible>true</visible>
+        <visible>false</visible>
     </applicationVisibilities>
 
     <!-- Custom Metadata Type Accesses -->

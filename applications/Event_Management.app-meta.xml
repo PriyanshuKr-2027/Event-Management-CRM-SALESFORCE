@@ -10,6 +10,7 @@
     <label>Event Management</label>
     <navType>Standard</navType>
     <tabs>Organizer_Dashboard</tabs>
+    <tabs>Event_Booking</tabs>
     <tabs>Event__c</tabs>
     <tabs>Venue__c</tabs>
     <tabs>Speaker__c</tabs>

@@ -2,8 +2,13 @@
 <ReportFolder xmlns="http://soap.sforce.com/2006/04/metadata">
     <folderShares>
         <accessLevel>View</accessLevel>
-        <sharedTo>AllInternalUsers</sharedTo>
-        <sharedToType>Organization</sharedToType>
+        <sharedTo>Event_Manager</sharedTo>
+        <sharedToType>RoleAndSubordinatesInternal</sharedToType>
+    </folderShares>
+    <folderShares>
+        <accessLevel>View</accessLevel>
+        <sharedTo>Event_Finance</sharedTo>
+        <sharedToType>RoleAndSubordinatesInternal</sharedToType>
     </folderShares>
     <name>Event Reports</name>
 </ReportFolder>

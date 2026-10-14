@@ -71,7 +71,7 @@ coverage/
 .claude/
 .cursor/
 .agents/
-
+.ppt_assets/
 # =============================================================================
 # OS Generated Files (Windows & macOS)
 # =============================================================================
@@ -90,3 +90,20 @@ Thumbs.db
 node_modules/
 dist/
 build/
+
+# =============================================================================
+# Presentation, Prep & Generation Scripts
+# =============================================================================
+ppt assets/
+ppt prep.md
+presentation/compare_flow_options.html
+presentation/ppt_prep.md
+presentation/visuals/
+scripts/apex/restrict_attendee_reports.apex
+scripts/flow_converter.py
+scripts/generate_all_visuals.py
+scripts/generate_both_options.py
+scripts/generate_erd_flowchart.py
+scripts/generate_flow_visuals.py
+scripts/generate_presentation_visuals.py
+scripts/generate_svgs.py

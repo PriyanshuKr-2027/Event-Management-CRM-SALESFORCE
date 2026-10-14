@@ -266,16 +266,6 @@
                 </div>
             </template>
 
-            <!-- STATE 3: FLOW (Embedded Screen Flow) -->
-            <template if:true={isFlowState}>
-                <div class="flow-container slds-card slds-p-around_large">
-                    <lightning-flow 
-                        flow-api-name="Event_Registration_Screen_Flow"
-                        flow-input-variables={flowInputVariables}
-                        onstatuschange={handleFlowStatusChange}>
-                    </lightning-flow>
-                </div>
-            </template>
 
             <!-- STATE 4: PAYMENT (Embedded Payment QR Verification Child LWC) -->
             <template if:true={isPaymentState}>

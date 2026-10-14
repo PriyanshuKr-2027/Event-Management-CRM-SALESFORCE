@@ -163,3 +163,12 @@ All reports are stored in the shared folder `reports/Event_Reports/`.
 > **Answer:**  
 > *"Sir, every report has a standard filter called **Scope** (e.g., 'My Events', 'My Team's Events', or 'All Events').  
 > If an Organizer runs a report with scope 'My Team's Events', they only see their own records because they have no subordinates. When an Event Manager runs the exact same report, the Role Hierarchy automatically expands the scope to include all records owned by any organizer reporting to them."*
+
+### Q6: "How do you ensure reports and dashboards are accessible to Finance but hidden from Attendees?"
+> **Answer:**  
+> *"Sir, we enforce security at multiple checkpoints:  
+> 1. **Folder Sharing:** The `Event Reports` and `Event Dashboards` folders are shared exclusively to `Event_Manager` (and subordinates) and the `Event_Finance` role. Unassigned attendee users cannot view the folders.  
+> 2. **Application Shell:** Attendees only have access to the `Event Portal` app, which contains only the `Event_Booking` tab. Finance users work inside `Event Management`, which displays full analytics and reports.  
+> 3. **Tab & Controller Access:** Finance is granted the `Organizer_Dashboard` tab and access to `OrganizerDashboardController` to track ticket revenues, whereas attendees have this tab set to `None`.  
+> 4. **User Profile Baseline:** Attendees use the Minimum Access baseline where `RunReports` is disabled at the system level."*
+
