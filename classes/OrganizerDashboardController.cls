@@ -11,6 +11,7 @@ public with sharing class OrganizerDashboardController {
         @AuraEnabled public Id eventId { get; set; }
         @AuraEnabled public String eventName { get; set; }
         @AuraEnabled public Datetime startDateTime { get; set; }
+        @AuraEnabled public Datetime endDateTime { get; set; }
         @AuraEnabled public String venueName { get; set; }
         @AuraEnabled public String approvalStatus { get; set; }
         @AuraEnabled public String publicationStatus { get; set; }
@@ -46,7 +47,7 @@ public with sharing class OrganizerDashboardController {
         List<Event__c> events;
         if (isManager) {
             events = [
-                SELECT Id, Name, Start_Date_Time__c, Venue__c, Venue__r.Name, Venue__r.Venue_Capacity__c,
+                SELECT Id, Name, Start_Date_Time__c, End_Date_Time__c, Venue__c, Venue__r.Name, Venue__r.Venue_Capacity__c,
                        Approval_Status__c, Publication_Status__c, Registration_Status__c,
                        (SELECT Id, Quota__c, Booked_Seats__c, Price__c FROM Ticket_Types__r),
                        (SELECT Id, Registration_Status__c, Booked_Price__c FROM Registrations__r)
@@ -55,7 +56,7 @@ public with sharing class OrganizerDashboardController {
             ];
         } else {
             events = [
-                SELECT Id, Name, Start_Date_Time__c, Venue__c, Venue__r.Name, Venue__r.Venue_Capacity__c,
+                SELECT Id, Name, Start_Date_Time__c, End_Date_Time__c, Venue__c, Venue__r.Name, Venue__r.Venue_Capacity__c,
                        Approval_Status__c, Publication_Status__c, Registration_Status__c,
                        (SELECT Id, Quota__c, Booked_Seats__c, Price__c FROM Ticket_Types__r),
                        (SELECT Id, Registration_Status__c, Booked_Price__c FROM Registrations__r)
@@ -72,6 +73,7 @@ public with sharing class OrganizerDashboardController {
             dto.eventId = ev.Id;
             dto.eventName = ev.Name;
             dto.startDateTime = ev.Start_Date_Time__c;
+            dto.endDateTime = ev.End_Date_Time__c;
             dto.venueName = ev.Venue__r != null ? ev.Venue__r.Name : '';
             dto.approvalStatus = ev.Approval_Status__c != null ? ev.Approval_Status__c : 'Draft';
             dto.publicationStatus = ev.Publication_Status__c != null ? ev.Publication_Status__c : 'Unpublished';

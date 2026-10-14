@@ -232,7 +232,27 @@ private class EventBookingControllerTest {
 
     @IsTest
     static void testGetMyTickets() {
-        Registration__c reg = [SELECT Id FROM Registration__c LIMIT 1];
+        Registration__c reg = [SELECT Id, Event__c FROM Registration__c LIMIT 1];
+
+        // Create speaker and link to event via Event_Speaker__c junction
+        Speaker__c spk = new Speaker__c(
+            Name = 'Keynote Speaker Dr. Tech',
+            Email__c = 'drtech@example.com',
+            Organization__c = 'Innovations Inc',
+            Expertise__c = 'Cloud Architecture',
+            Status__c = 'Active'
+        );
+        insert spk;
+
+        Event_Speaker__c es = new Event_Speaker__c(
+            Event__c = reg.Event__c,
+            Speaker__c = spk.Id,
+            Role__c = 'Keynote',
+            Session_Title__c = 'Keynote Address',
+            Display_Order__c = 1
+        );
+        insert es;
+
         Ticket__c tkt = new Ticket__c(
             Registration__c = reg.Id,
             Ticket_Status__c = 'Active',
@@ -249,6 +269,9 @@ private class EventBookingControllerTest {
         System.assertEquals(tkt.Id, tickets[0].ticketId, 'Ticket ID should match');
         System.assertEquals('Cloud Summit 2026', tickets[0].eventName, 'Event name should match');
         System.assert(tickets[0].printableTicketUrl.contains(tkt.Id), 'Printable URL should contain ticket ID');
+        System.assertNotEquals(null, tickets[0].speakers, 'Speakers list should not be null');
+        System.assertEquals(1, tickets[0].speakers.size(), 'Should return 1 assigned speaker');
+        System.assertEquals('Keynote Speaker Dr. Tech', tickets[0].speakers[0].name);
     }
 
     @IsTest
@@ -317,5 +340,45 @@ private class EventBookingControllerTest {
         Test.stopTest();
 
         System.assert(caught, 'Should throw exception when tickets requested exceed quota');
+    }
+
+    @IsTest
+    static void testCancelBooking_Success() {
+        Registration__c reg = [SELECT Id, Registration_Status__c FROM Registration__c LIMIT 1];
+        Ticket__c tkt = new Ticket__c(
+            Registration__c = reg.Id,
+            Ticket_Status__c = 'Active',
+            Issue_Date_Time__c = Datetime.now()
+        );
+        insert tkt;
+
+        Test.startTest();
+        String res = EventBookingController.cancelBooking(reg.Id);
+        Test.stopTest();
+
+        System.assert(res.contains('successfully cancelled'), 'Should return success message');
+        Registration__c updatedReg = [SELECT Id, Registration_Status__c FROM Registration__c WHERE Id = :reg.Id];
+        System.assertEquals('Cancelled', updatedReg.Registration_Status__c, 'Registration should be cancelled');
+
+        Ticket__c updatedTkt = [SELECT Id, Ticket_Status__c FROM Ticket__c WHERE Id = :tkt.Id];
+        System.assertEquals('Cancelled', updatedTkt.Ticket_Status__c, 'Child ticket should be cancelled');
+    }
+
+    @IsTest
+    static void testCancelBooking_AlreadyCancelled_ThrowsException() {
+        Registration__c reg = [SELECT Id, Registration_Status__c FROM Registration__c LIMIT 1];
+        reg.Registration_Status__c = 'Cancelled';
+        update reg;
+
+        Test.startTest();
+        Boolean caught = false;
+        try {
+            EventBookingController.cancelBooking(reg.Id);
+        } catch (AuraHandledException e) {
+            caught = true;
+        }
+        Test.stopTest();
+
+        System.assert(caught, 'Should throw exception when cancelling an already cancelled booking');
     }
 }

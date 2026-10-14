@@ -157,6 +157,24 @@ export default class TicketTypeCollector extends LightningElement {
                 errorMessage: 'Every ticket type needs a Name, Price, and Quota.'
             };
         }
+
+        const invalidValues = this._ticketTypes.some(
+            (tt) => Number(tt.price) < 0 || Number(tt.quota) <= 0
+        );
+        if (invalidValues) {
+            return {
+                isValid: false,
+                errorMessage: 'Ticket Price cannot be negative and Quota must be greater than zero.'
+            };
+        }
+
+        if (this.quotaExceedsCapacity) {
+            return {
+                isValid: false,
+                errorMessage: `Total ticket quota (${this.runningQuotaTotal}) exceeds venue capacity (${this.venueCapacity}). Please adjust quotas.`
+            };
+        }
+
         return { isValid: true };
     }
 }

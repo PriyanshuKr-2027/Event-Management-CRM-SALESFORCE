@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ValidationRule xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Lock_Booked_Price_After_Insert</fullName>
+    <active>true</active>
+    <description>Prevents modifying the booked price after registration creation to protect financial records.</description>
+    <errorConditionFormula>NOT(ISNEW()) &amp;&amp; ISCHANGED(Booked_Price__c)</errorConditionFormula>
+    <errorDisplayField>Booked_Price__c</errorDisplayField>
+    <errorMessage>Booked Price is locked after registration creation and cannot be modified.</errorMessage>
+</ValidationRule>

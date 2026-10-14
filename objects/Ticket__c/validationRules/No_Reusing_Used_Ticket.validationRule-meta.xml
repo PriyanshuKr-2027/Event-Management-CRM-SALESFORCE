@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ValidationRule xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>No_Reusing_Used_Ticket</fullName>
+    <active>true</active>
+    <description>Prevents reactivating a ticket that has already been marked as Used.</description>
+    <errorConditionFormula>AND(
+    ISCHANGED(Ticket_Status__c),
+    ISPICKVAL(PRIORVALUE(Ticket_Status__c), &quot;Used&quot;)
+)</errorConditionFormula>
+    <errorDisplayField>Ticket_Status__c</errorDisplayField>
+    <errorMessage>A ticket that has already been used cannot be reactivated or modified.</errorMessage>
+</ValidationRule>

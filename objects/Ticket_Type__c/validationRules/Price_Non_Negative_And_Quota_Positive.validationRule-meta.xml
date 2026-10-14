@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ValidationRule xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Price_Non_Negative_And_Quota_Positive</fullName>
+    <active>true</active>
+    <description>Ensures ticket price cannot be negative and quota must be strictly positive.</description>
+    <errorConditionFormula>OR(Price__c &lt; 0, Quota__c &lt;= 0)</errorConditionFormula>
+    <errorDisplayField>Price__c</errorDisplayField>
+    <errorMessage>Ticket Price cannot be negative and Quota must be greater than zero.</errorMessage>
+</ValidationRule>

@@ -100,7 +100,7 @@
                     </p>
                 </template>
 
-                <template for:each={filteredEvents} for:item="ev">
+                <template for:each={pagedEvents} for:item="ev">
                     <div key={ev.eventId} class="slds-box slds-m-bottom_small">
                         <div class="slds-grid slds-grid_align-spread slds-wrap">
                             <div class="slds-col slds-size_1-of-1 slds-medium-size_2-of-3">
@@ -130,6 +130,30 @@
                                     onclick={handleViewEvent}>
                                 </lightning-button>
                             </div>
+                        </div>
+                    </div>
+                </template>
+
+                <!-- Pagination Controls -->
+                <template if:true={isPaginationVisible}>
+                    <div class="slds-grid slds-grid_align-spread slds-grid_vertical-align-center slds-m-top_medium slds-p-top_small slds-border_top">
+                        <div class="slds-text-body_small slds-text-color_weak">
+                            Showing {paginationStart}–{paginationEnd} of {filteredEvents.length} events (Page {currentPage} of {totalPages})
+                        </div>
+                        <div class="slds-button-group" role="group">
+                            <lightning-button 
+                                label="Previous" 
+                                icon-name="utility:chevronleft" 
+                                disabled={isFirstPage} 
+                                onclick={handlePrevPage}>
+                            </lightning-button>
+                            <lightning-button 
+                                label="Next" 
+                                icon-name="utility:chevronright" 
+                                icon-position="right" 
+                                disabled={isLastPage} 
+                                onclick={handleNextPage}>
+                            </lightning-button>
                         </div>
                     </div>
                 </template>

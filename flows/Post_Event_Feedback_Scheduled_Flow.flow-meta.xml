@@ -23,7 +23,7 @@
         <locationX>50</locationX>
         <locationY>0</locationY>
         <connector>
-            <targetReference>Get_Confirmed_Registrations</targetReference>
+            <targetReference>Decision_Event_Ended_Yesterday</targetReference>
         </connector>
         <filterLogic>and</filterLogic>
         <filters>
@@ -85,6 +85,28 @@
         </connector>
     </assignments>
     <decisions>
+        <name>Decision_Event_Ended_Yesterday</name>
+        <label>Event Ended Yesterday?</label>
+        <locationX>176</locationX>
+        <locationY>50</locationY>
+        <defaultConnectorLabel>Not Ended Yesterday</defaultConnectorLabel>
+        <rules>
+            <name>Ended_Yesterday_Rule</name>
+            <conditionLogic>and</conditionLogic>
+            <conditions>
+                <leftValueReference>formulaIsEventEndedYesterday</leftValueReference>
+                <operator>EqualTo</operator>
+                <rightValue>
+                    <booleanValue>true</booleanValue>
+                </rightValue>
+            </conditions>
+            <connector>
+                <targetReference>Get_Confirmed_Registrations</targetReference>
+            </connector>
+            <label>Ended Yesterday</label>
+        </rules>
+    </decisions>
+    <decisions>
         <name>Decision_Has_Feedback_Recipients</name>
         <label>Has Recipients?</label>
         <locationX>176</locationX>
@@ -106,6 +128,11 @@
             <label>Has Recipients</label>
         </rules>
     </decisions>
+    <formulas>
+        <name>formulaIsEventEndedYesterday</name>
+        <dataType>Boolean</dataType>
+        <expression>NOT(ISBLANK({!$Record.End_Date_Time__c})) &amp;&amp; DATEVALUE({!$Record.End_Date_Time__c}) = TODAY() - 1</expression>
+    </formulas>
     <formulas>
         <name>formulaFeedbackSubject</name>
         <dataType>String</dataType>

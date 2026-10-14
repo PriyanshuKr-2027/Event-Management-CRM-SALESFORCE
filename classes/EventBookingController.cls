@@ -67,22 +67,6 @@ public without sharing class EventBookingController {
     }
 
     /**
-    public class AttendeeInput {
-        @AuraEnabled public String name;
-        @AuraEnabled public String email;
-        @AuraEnabled public String phone;
-    }
-
-    public class BookingResult {
-        @AuraEnabled public String bookingGroupId;
-        @AuraEnabled public String primaryRegistrationId;
-        @AuraEnabled public Integer ticketCount;
-        @AuraEnabled public Decimal totalAmount;
-        @AuraEnabled public Decimal pricePerTicket;
-        @AuraEnabled public List<String> registrationIds;
-    }
-
-    /**
      * @description Books multiple tickets at once for an event, creating/matching Attendee records
      * and inserting Registration records linked by a common Booking_Group_Id__c.
      */
@@ -265,12 +249,30 @@ public without sharing class EventBookingController {
 
         Registration__c primaryReg = regs[0];
 
-        // 2. Ownership Check (validationrules.md §8)
+        // 2. Ownership Check — always validate against the PRIMARY booker in the group.
+        // The primary booker is the one with User__c set (only the first attendee gets this).
+        // This prevents bypass by passing a secondary attendee's registration ID (which has User__c = null).
         Id currentUserId = UserInfo.getUserId();
-        if (primaryReg.Attendee__r != null && primaryReg.Attendee__r.User__c != null) {
-            if (primaryReg.Attendee__r.User__c != currentUserId) {
-                throw new AuraHandledException('Unauthorized: You can only confirm payment for your own registration.');
+        Registration__c ownerReg = primaryReg;
+
+        if (String.isNotBlank(primaryReg.Booking_Group_Id__c)) {
+            // Find the registration that has User__c set (the primary booker)
+            List<Registration__c> ownerRegs = [
+                SELECT Id, Attendee__r.User__c
+                FROM Registration__c
+                WHERE Booking_Group_Id__c = :primaryReg.Booking_Group_Id__c
+                  AND Attendee__r.User__c != null
+                LIMIT 1
+            ];
+            if (!ownerRegs.isEmpty()) {
+                ownerReg = ownerRegs[0];
             }
+        }
+
+        // Strict ownership enforcement — no null bypass
+        if (ownerReg.Attendee__r == null || ownerReg.Attendee__r.User__c == null
+            || ownerReg.Attendee__r.User__c != currentUserId) {
+            throw new AuraHandledException('Unauthorized: You can only confirm payment for your own registration.');
         }
 
         // 3. Find all sibling registrations in the same booking group (if grouped)
@@ -365,6 +367,16 @@ public without sharing class EventBookingController {
         @AuraEnabled public List<String> registrationIds { get; set; }
     }
 
+    public class SpeakerInfoDTO {
+        @AuraEnabled public String speakerId { get; set; }
+        @AuraEnabled public String name { get; set; }
+        @AuraEnabled public String organization { get; set; }
+        @AuraEnabled public String expertise { get; set; }
+        @AuraEnabled public String role { get; set; }
+        @AuraEnabled public String sessionTitle { get; set; }
+        @AuraEnabled public String photoUrl { get; set; }
+    }
+
     public class TicketDTO {
         @AuraEnabled public String ticketId;
         @AuraEnabled public String ticketNumber;
@@ -375,20 +387,86 @@ public without sharing class EventBookingController {
         @AuraEnabled public String bookingGroupId;
         @AuraEnabled public String attendeeName;
         @AuraEnabled public String attendeeEmail;
+        @AuraEnabled public String attendeePhone;
         @AuraEnabled public String eventId;
         @AuraEnabled public String eventName;
+        @AuraEnabled public String eventCategory;
         @AuraEnabled public Datetime eventStartDate;
         @AuraEnabled public Datetime eventEndDate;
         @AuraEnabled public String venueName;
+        @AuraEnabled public String venueAddress;
         @AuraEnabled public String venueCity;
         @AuraEnabled public String ticketTypeName;
         @AuraEnabled public Decimal bookedPrice;
         @AuraEnabled public String printableTicketUrl;
+        @AuraEnabled public List<SpeakerInfoDTO> speakers;
+        @AuraEnabled public Boolean isCancelled;
+        @AuraEnabled public Boolean canCancel;
+    }
+
+    /**
+     * @description Cancels an existing registration and its child tickets if the event has not yet ended.
+     * Releases the booked ticket quota back to the ticket type via RegistrationTriggerHandler.
+     * @param registrationId The Id of the Registration__c to cancel.
+     * @return Confirmation message.
+     */
+    @AuraEnabled
+    public static String cancelBooking(Id registrationId) {
+        if (registrationId == null) {
+            throw new AuraHandledException('Invalid Registration: registrationId is required.');
+        }
+
+        List<Registration__c> regs = [
+            SELECT Id, Registration_Status__c, Event__r.End_Date_Time__c,
+                   Attendee__r.User__c, Attendee__r.Email__c
+            FROM Registration__c
+            WHERE Id = :registrationId
+            LIMIT 1
+        ];
+
+        if (regs.isEmpty()) {
+            throw new AuraHandledException('Registration not found.');
+        }
+
+        Registration__c reg = regs[0];
+
+        Id currentUserId = UserInfo.getUserId();
+        String currentUserEmail = UserInfo.getUserEmail();
+        Boolean isOwner = (reg.Attendee__r != null && 
+            (reg.Attendee__r.User__c == currentUserId || 
+             (String.isNotBlank(reg.Attendee__r.Email__c) && reg.Attendee__r.Email__c.equalsIgnoreCase(currentUserEmail))));
+
+        if (!isOwner) {
+            List<PermissionSetAssignment> psa = [
+                SELECT Id FROM PermissionSetAssignment 
+                WHERE AssigneeId = :currentUserId 
+                  AND PermissionSet.Name IN ('Event_Organizer_Permissions', 'Event_Manager_Permissions')
+            ];
+            Profile p = [SELECT Name FROM Profile WHERE Id = :UserInfo.getProfileId() LIMIT 1];
+            Boolean isPrivileged = p.Name == 'System Administrator' || !psa.isEmpty();
+            if (!isPrivileged) {
+                throw new AuraHandledException('You do not have permission to cancel this registration.');
+            }
+        }
+
+        if ('Cancelled'.equalsIgnoreCase(reg.Registration_Status__c)) {
+            throw new AuraHandledException('This registration has already been cancelled.');
+        }
+
+        if (reg.Event__r != null && reg.Event__r.End_Date_Time__c != null && reg.Event__r.End_Date_Time__c < Datetime.now()) {
+            throw new AuraHandledException('Registrations cannot be cancelled after the event has ended.');
+        }
+
+        reg.Registration_Status__c = 'Cancelled';
+        update reg;
+
+        return 'Registration and associated tickets have been successfully cancelled.';
     }
 
     /**
      * @description Fetches all issued tickets for the current attendee/user.
-     * Matches by linked User, Attendee Email, or Attendee Name, with demo fallback.
+     * Matches by linked User, Attendee Email, or Attendee Name.
+     * Enriches tickets with venue details, attendee phone, and assigned speakers.
      * @return List of TicketDTO objects containing event, venue, and pass details.
      */
     @AuraEnabled(cacheable=true)
@@ -400,11 +478,11 @@ public without sharing class EventBookingController {
         List<Ticket__c> tickets = [
             SELECT Id, Name, Ticket_Status__c, Issue_Date_Time__c,
                    Registration__c, Registration__r.Name, Registration__r.Booked_Price__c,
-                   Registration__r.Booking_Group_Id__c,
-                   Registration__r.Attendee__r.Name, Registration__r.Attendee__r.Email__c,
-                   Registration__r.Event__c, Registration__r.Event__r.Name,
+                   Registration__r.Booking_Group_Id__c, Registration__r.Registration_Status__c,
+                   Registration__r.Attendee__r.Name, Registration__r.Attendee__r.Email__c, Registration__r.Attendee__r.Phone__c,
+                   Registration__r.Event__c, Registration__r.Event__r.Name, Registration__r.Event__r.Category__c,
                    Registration__r.Event__r.Start_Date_Time__c, Registration__r.Event__r.End_Date_Time__c,
-                   Registration__r.Event__r.Venue__r.Name, Registration__r.Event__r.Venue__r.City__c,
+                   Registration__r.Event__r.Venue__r.Name, Registration__r.Event__r.Venue__r.Address__c, Registration__r.Event__r.Venue__r.City__c,
                    Registration__r.Ticket_Type__r.Name
             FROM Ticket__c
             WHERE Registration__r.Attendee__r.User__c = :currentUserId
@@ -414,21 +492,37 @@ public without sharing class EventBookingController {
             LIMIT 100
         ];
 
-        // Fallback for Admin / Dev sandbox testing when user has not yet booked in their own name
-        if (tickets.isEmpty()) {
-            tickets = [
-                SELECT Id, Name, Ticket_Status__c, Issue_Date_Time__c,
-                       Registration__c, Registration__r.Name, Registration__r.Booked_Price__c,
-                       Registration__r.Booking_Group_Id__c,
-                       Registration__r.Attendee__r.Name, Registration__r.Attendee__r.Email__c,
-                       Registration__r.Event__c, Registration__r.Event__r.Name,
-                       Registration__r.Event__r.Start_Date_Time__c, Registration__r.Event__r.End_Date_Time__c,
-                       Registration__r.Event__r.Venue__r.Name, Registration__r.Event__r.Venue__r.City__c,
-                       Registration__r.Ticket_Type__r.Name
-                FROM Ticket__c
-                ORDER BY Issue_Date_Time__c DESC NULLS LAST, CreatedDate DESC
-                LIMIT 50
-            ];
+        // Collect unique event IDs to query assigned speakers in a single bulk query
+        Set<Id> eventIds = new Set<Id>();
+        for (Ticket__c t : tickets) {
+            if (t.Registration__r != null && t.Registration__r.Event__c != null) {
+                eventIds.add(t.Registration__r.Event__c);
+            }
+        }
+
+        Map<Id, List<SpeakerInfoDTO>> speakersByEventId = new Map<Id, List<SpeakerInfoDTO>>();
+        if (!eventIds.isEmpty()) {
+            for (Event_Speaker__c es : [
+                SELECT Id, Event__c, Role__c, Session_Title__c, Display_Order__c,
+                       Speaker__r.Id, Speaker__r.Name, Speaker__r.Organization__c, 
+                       Speaker__r.Expertise__c, Speaker__r.Photo_URL__c
+                FROM Event_Speaker__c
+                WHERE Event__c IN :eventIds
+                ORDER BY Display_Order__c ASC NULLS LAST, Speaker__r.Name ASC
+            ]) {
+                if (!speakersByEventId.containsKey(es.Event__c)) {
+                    speakersByEventId.put(es.Event__c, new List<SpeakerInfoDTO>());
+                }
+                SpeakerInfoDTO sDto = new SpeakerInfoDTO();
+                sDto.speakerId = es.Speaker__r.Id;
+                sDto.name = es.Speaker__r.Name;
+                sDto.organization = es.Speaker__r.Organization__c;
+                sDto.expertise = es.Speaker__r.Expertise__c;
+                sDto.role = String.isNotBlank(es.Role__c) ? es.Role__c : 'Speaker';
+                sDto.sessionTitle = es.Session_Title__c;
+                sDto.photoUrl = es.Speaker__r.Photo_URL__c;
+                speakersByEventId.get(es.Event__c).add(sDto);
+            }
         }
 
         List<TicketDTO> dtoList = new List<TicketDTO>();
@@ -438,6 +532,20 @@ public without sharing class EventBookingController {
             dto.ticketNumber = t.Name;
             dto.status = String.isNotBlank(t.Ticket_Status__c) ? t.Ticket_Status__c : 'Active';
             dto.issueDateTime = t.Issue_Date_Time__c;
+            dto.speakers = new List<SpeakerInfoDTO>();
+
+            Boolean isCancelled = 'Cancelled'.equalsIgnoreCase(t.Ticket_Status__c) || 
+                (t.Registration__r != null && 'Cancelled'.equalsIgnoreCase(t.Registration__r.Registration_Status__c));
+            dto.isCancelled = isCancelled;
+            if (isCancelled) {
+                dto.status = 'Cancelled';
+            }
+
+            Boolean isEventEnded = (t.Registration__r != null && t.Registration__r.Event__r != null && 
+                t.Registration__r.Event__r.End_Date_Time__c != null && t.Registration__r.Event__r.End_Date_Time__c < Datetime.now());
+            Boolean isTicketUsed = 'Used'.equalsIgnoreCase(t.Ticket_Status__c);
+            dto.canCancel = !isCancelled && !isTicketUsed && !isEventEnded;
+
             if (t.Registration__r != null) {
                 dto.registrationId = t.Registration__c;
                 dto.registrationNumber = t.Registration__r.Name;
@@ -446,15 +554,21 @@ public without sharing class EventBookingController {
                 if (t.Registration__r.Attendee__r != null) {
                     dto.attendeeName = t.Registration__r.Attendee__r.Name;
                     dto.attendeeEmail = t.Registration__r.Attendee__r.Email__c;
+                    dto.attendeePhone = t.Registration__r.Attendee__r.Phone__c;
                 }
                 if (t.Registration__r.Event__r != null) {
                     dto.eventId = t.Registration__r.Event__c;
                     dto.eventName = t.Registration__r.Event__r.Name;
+                    dto.eventCategory = t.Registration__r.Event__r.Category__c;
                     dto.eventStartDate = t.Registration__r.Event__r.Start_Date_Time__c;
                     dto.eventEndDate = t.Registration__r.Event__r.End_Date_Time__c;
                     if (t.Registration__r.Event__r.Venue__r != null) {
                         dto.venueName = t.Registration__r.Event__r.Venue__r.Name;
+                        dto.venueAddress = t.Registration__r.Event__r.Venue__r.Address__c;
                         dto.venueCity = t.Registration__r.Event__r.Venue__r.City__c;
+                    }
+                    if (speakersByEventId.containsKey(dto.eventId)) {
+                        dto.speakers = speakersByEventId.get(dto.eventId);
                     }
                 }
                 if (t.Registration__r.Ticket_Type__r != null) {

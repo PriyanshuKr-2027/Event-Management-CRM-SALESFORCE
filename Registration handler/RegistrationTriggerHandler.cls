@@ -19,6 +19,10 @@
  * Bulk-safe: one locking query, all validation done in-memory against
  * running counters (so multiple Registrations in the same batch against the
  * same Ticket Type are still counted correctly), one bulk update.
+ *
+ * Also handles seat RELEASE on cancellation, deletion, and undeletion
+ * to prevent the "seat black hole" where cancelled bookings permanently
+ * consume capacity.
  */
 public class RegistrationTriggerHandler {
 
@@ -112,5 +116,178 @@ public class RegistrationTriggerHandler {
         // if the Registration insert itself later fails for any other
         // reason, this update rolls back with it.
         update updates;
+    }
+
+    /**
+     * After Update: Release seats when registration status changes TO 'Cancelled'.
+     * Re-increment seats if a registration is un-cancelled (status changes FROM 'Cancelled'
+     * back to an active status).
+     */
+    public static void afterUpdate(List<Registration__c> newRecords, Map<Id, Registration__c> oldMap) {
+        // Collect ticket type IDs that need seat adjustments
+        Map<Id, Integer> seatDeltas = new Map<Id, Integer>();
+        Set<Id> newlyCancelledRegIds = new Set<Id>();
+        Set<Id> uncancelledRegIds = new Set<Id>();
+
+        for (Registration__c reg : newRecords) {
+            Registration__c oldReg = oldMap.get(reg.Id);
+            if (reg.Ticket_Type__c == null) continue;
+
+            Boolean wasCancelled = 'Cancelled'.equalsIgnoreCase(oldReg.Registration_Status__c);
+            Boolean isCancelled = 'Cancelled'.equalsIgnoreCase(reg.Registration_Status__c);
+
+            if (!wasCancelled && isCancelled) {
+                // Newly cancelled — release a seat and void child tickets
+                Integer delta = seatDeltas.containsKey(reg.Ticket_Type__c) ? seatDeltas.get(reg.Ticket_Type__c) : 0;
+                seatDeltas.put(reg.Ticket_Type__c, delta - 1);
+                newlyCancelledRegIds.add(reg.Id);
+            } else if (wasCancelled && !isCancelled) {
+                // Un-cancelled (reactivated) — reclaim a seat and restore child tickets
+                Integer delta = seatDeltas.containsKey(reg.Ticket_Type__c) ? seatDeltas.get(reg.Ticket_Type__c) : 0;
+                seatDeltas.put(reg.Ticket_Type__c, delta + 1);
+                uncancelledRegIds.add(reg.Id);
+            }
+        }
+
+        if (!seatDeltas.isEmpty()) {
+            adjustBookedSeats(seatDeltas);
+        }
+
+        if (!newlyCancelledRegIds.isEmpty()) {
+            cancelChildTickets(newlyCancelledRegIds);
+        }
+
+        if (!uncancelledRegIds.isEmpty()) {
+            reactivateChildTickets(uncancelledRegIds);
+        }
+    }
+
+    /**
+     * Voids child tickets when a registration is cancelled so cancelled
+     * tickets cannot pass gate check-in.
+     */
+    private static void cancelChildTickets(Set<Id> regIds) {
+        List<Ticket__c> ticketsToCancel = [
+            SELECT Id, Ticket_Status__c
+            FROM Ticket__c
+            WHERE Registration__c IN :regIds
+              AND Ticket_Status__c != 'Cancelled'
+        ];
+        if (!ticketsToCancel.isEmpty()) {
+            for (Ticket__c t : ticketsToCancel) {
+                t.Ticket_Status__c = 'Cancelled';
+            }
+            update ticketsToCancel;
+        }
+    }
+
+    /**
+     * Restores child tickets to Active when a registration is uncancelled.
+     */
+    private static void reactivateChildTickets(Set<Id> regIds) {
+        List<Ticket__c> ticketsToReactivate = [
+            SELECT Id, Ticket_Status__c
+            FROM Ticket__c
+            WHERE Registration__c IN :regIds
+              AND Ticket_Status__c = 'Cancelled'
+        ];
+        if (!ticketsToReactivate.isEmpty()) {
+            for (Ticket__c t : ticketsToReactivate) {
+                t.Ticket_Status__c = 'Active';
+            }
+            update ticketsToReactivate;
+        }
+    }
+
+    /**
+     * After Delete: Release seats for all deleted registrations that were NOT
+     * already in 'Cancelled' status (cancelled ones already had their seats released).
+     */
+    public static void afterDelete(List<Registration__c> oldRecords) {
+        Map<Id, Integer> seatDeltas = new Map<Id, Integer>();
+
+        for (Registration__c reg : oldRecords) {
+            if (reg.Ticket_Type__c == null) continue;
+            // Only release seats for non-cancelled registrations (cancelled ones were already released)
+            if (!'Cancelled'.equalsIgnoreCase(reg.Registration_Status__c)) {
+                Integer delta = seatDeltas.containsKey(reg.Ticket_Type__c) ? seatDeltas.get(reg.Ticket_Type__c) : 0;
+                seatDeltas.put(reg.Ticket_Type__c, delta - 1);
+            }
+        }
+
+        if (!seatDeltas.isEmpty()) {
+            adjustBookedSeats(seatDeltas);
+        }
+    }
+
+    /**
+     * After Undelete: Re-claim seats for restored registrations that are NOT
+     * in 'Cancelled' status.
+     */
+    public static void afterUndelete(List<Registration__c> newRecords) {
+        Map<Id, Integer> seatDeltas = new Map<Id, Integer>();
+
+        for (Registration__c reg : newRecords) {
+            if (reg.Ticket_Type__c == null) continue;
+            // Only reclaim seats for non-cancelled registrations
+            if (!'Cancelled'.equalsIgnoreCase(reg.Registration_Status__c)) {
+                Integer delta = seatDeltas.containsKey(reg.Ticket_Type__c) ? seatDeltas.get(reg.Ticket_Type__c) : 0;
+                seatDeltas.put(reg.Ticket_Type__c, delta + 1);
+            }
+        }
+
+        if (!seatDeltas.isEmpty()) {
+            adjustBookedSeats(seatDeltas);
+        }
+    }
+
+    /**
+     * Shared utility: applies seat count adjustments to Ticket_Type__c records
+     * using row-level locking for concurrency safety.
+     * Positive delta = seats consumed, Negative delta = seats released.
+     * Automatically toggles Status__c between 'Sold Out' and 'Available'.
+     */
+    private static void adjustBookedSeats(Map<Id, Integer> seatDeltas) {
+        // Lock the ticket types to prevent concurrent modifications
+        Map<Id, Ticket_Type__c> lockedTypes = new Map<Id, Ticket_Type__c>([
+            SELECT Id, Quota__c, Booked_Seats__c, Status__c
+            FROM Ticket_Type__c
+            WHERE Id IN :seatDeltas.keySet()
+            FOR UPDATE
+        ]);
+
+        List<Ticket_Type__c> updates = new List<Ticket_Type__c>();
+        for (Id ttId : seatDeltas.keySet()) {
+            Ticket_Type__c tt = lockedTypes.get(ttId);
+            if (tt == null) continue;
+
+            Decimal currentBooked = tt.Booked_Seats__c != null ? tt.Booked_Seats__c : 0;
+            Decimal newBooked = currentBooked + seatDeltas.get(ttId);
+            // Floor at zero — should never go negative, but be safe
+            if (newBooked < 0) {
+                newBooked = 0;
+            }
+
+            Decimal quota = tt.Quota__c != null ? tt.Quota__c : 0;
+
+            Ticket_Type__c updateRecord = new Ticket_Type__c(
+                Id = ttId,
+                Booked_Seats__c = newBooked
+            );
+
+            // Toggle status based on new seat count
+            if (newBooked >= quota && quota > 0) {
+                updateRecord.Status__c = 'Sold Out';
+            } else if (tt.Status__c == 'Sold Out' && newBooked < quota) {
+                // Was Sold Out but seats freed up — reopen
+                updateRecord.Status__c = 'Available';
+            }
+
+            updates.add(updateRecord);
+        }
+
+        if (!updates.isEmpty()) {
+            update updates;
+        }
     }
 }

@@ -75,6 +75,16 @@
                 <div class="reference-code slds-text-body_small slds-m-top_x-small slds-text-color_weak">
                     Standard NPCI UPI Intent Format
                 </div>
+
+                <!-- Training / Demo Simulation Notice -->
+                <div class="simulation-notice slds-box slds-box_xx-small slds-m-top_small slds-text-align_left">
+                    <div class="slds-grid slds-grid_vertical-align-center">
+                        <lightning-icon icon-name="utility:info" size="xx-small" class="slds-m-right_x-small"></lightning-icon>
+                        <span class="slds-text-body_small">
+                            <strong>Training Demo Mode:</strong> Simulated UPI adapter active. Toggling to Production in <code>Payment_Gateway_Config__mdt</code> activates live bank webhook callbacks and real UPI QR generation without code modifications.
+                        </span>
+                    </div>
+                </div>
             </div>
 
             <!-- Confirmation Checkbox -->
@@ -103,16 +113,16 @@
             </div>
         </template>
 
-        <!-- Step 2: Payment Verification Screen (10-Second Countdown) -->
+        <!-- Step 2: Payment Verification Screen (Countdown with accessibility & instant skip) -->
         <template if:true={isVerifyingStep}>
-            <div class="verifying-container slds-text-align_center slds-p-vertical_xx-large">
+            <div class="verifying-container slds-text-align_center slds-p-vertical_large" role="region" aria-label="Payment Verification">
                 <h2 class="verifying-title slds-text-heading_medium slds-m-bottom_x-small">Verifying Payment</h2>
-                <p class="verifying-subtitle slds-text-color_weak slds-m-bottom_large">
+                <p class="verifying-subtitle slds-text-color_weak slds-m-bottom_medium">
                     Awaiting verification confirmation from payment network ({gatewayProvider})...
                 </p>
 
-                <!-- Animated Countdown Circle -->
-                <div class="countdown-wrapper slds-m-vertical_large">
+                <!-- Animated Countdown Circle with Accessible Timer Attributes -->
+                <div class="countdown-wrapper slds-m-vertical_medium" role="timer" aria-live="polite" aria-atomic="true" aria-label="Seconds remaining for payment verification">
                     <svg class="countdown-svg" viewBox="0 0 160 160">
                         <circle cx="80" cy="80" r="68" class="countdown-track"></circle>
                         <circle cx="80" cy="80" r="68" class="countdown-bar" style={countdownStrokeStyle}></circle>
@@ -122,6 +132,14 @@
                         <span class="countdown-unit">seconds</span>
                     </div>
                 </div>
+
+                <template if:true={isSandbox}>
+                    <div class="slds-m-top_medium">
+                        <button class="slds-button slds-button_outline-brand demo-skip-btn" onclick={handleSkipTimer} type="button">
+                            ⚡ Instant Verify (Skip Demo Timer)
+                        </button>
+                    </div>
+                </template>
 
                 <div class="verification-notice slds-text-body_small slds-text-color_weak slds-m-top_medium">
                     Do not close or refresh this window while verification is in progress.

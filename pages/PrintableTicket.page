@@ -136,11 +136,49 @@
                     font-family: Arial, sans-serif;
                     color: #475569;
                 }
+                .watermark-void {
+                    position: fixed;
+                    top: 35%;
+                    left: 5%;
+                    width: 85%;
+                    text-align: center;
+                    font-size: 40pt;
+                    font-weight: bold;
+                    color: #dc2626;
+                    opacity: 0.22;
+                    transform: rotate(-28deg);
+                    z-index: 1000;
+                    border: 6px dashed #dc2626;
+                    padding: 14px;
+                    text-transform: uppercase;
+                    letter-spacing: 4px;
+                }
+                .cancelled-alert {
+                    background-color: #fef2f2;
+                    border: 2px solid #ef4444;
+                    color: #b91c1c;
+                    padding: 10px 14px;
+                    border-radius: 8px;
+                    margin-bottom: 16px;
+                    text-align: center;
+                    font-weight: bold;
+                    font-size: 11pt;
+                }
             </style>
         </head>
         <body>
             <apex:outputPanel rendered="{!primaryTicket.Id != null}">
+                <apex:outputPanel rendered="{!isCancelled}">
+                    <div class="watermark-void">VOID • CANCELLED</div>
+                </apex:outputPanel>
+
                 <div class="ticket-container">
+                    <apex:outputPanel rendered="{!isCancelled}">
+                        <div class="cancelled-alert">
+                            ⚠️ VOID / CANCELLED PASS — This ticket has been cancelled and is NOT valid for venue admission.
+                        </div>
+                    </apex:outputPanel>
+
                     <table class="header-table">
                         <tr>
                             <td>
@@ -154,7 +192,12 @@
                             </td>
                             <td style="text-align: right;">
                                 <span class="label">Pass Status</span><br/>
-                                <span class="value" style="color: #16a34a;">{!primaryTicket.Ticket_Status__c}</span>
+                                <apex:outputPanel rendered="{!isCancelled}">
+                                    <span class="value" style="color: #dc2626;">CANCELLED</span>
+                                </apex:outputPanel>
+                                <apex:outputPanel rendered="{!NOT(isCancelled)}">
+                                    <span class="value" style="color: #16a34a;">{!primaryTicket.Ticket_Status__c}</span>
+                                </apex:outputPanel>
                             </td>
                         </tr>
                     </table>
@@ -204,6 +247,33 @@
                             </td>
                         </tr>
                     </table>
+
+                    <!-- FEATURED SPEAKERS SECTION -->
+                    <apex:outputPanel rendered="{!hasSpeakers}">
+                        <div class="roster-section">
+                            <div class="roster-title">Featured Speakers &amp; Presenters</div>
+                            <table class="roster-table">
+                                <thead>
+                                    <tr>
+                                        <th style="width: 28%;">Speaker</th>
+                                        <th style="width: 24%;">Organization</th>
+                                        <th style="width: 20%;">Role</th>
+                                        <th style="width: 28%;">Session / Topic</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <apex:repeat value="{!eventSpeakers}" var="es">
+                                        <tr>
+                                            <td><strong>{!es.Speaker__r.Name}</strong></td>
+                                            <td>{!IF(ISBLANK(es.Speaker__r.Organization__c), '-', es.Speaker__r.Organization__c)}</td>
+                                            <td><span style="color: #0284c7; font-weight: bold;">{!IF(ISBLANK(es.Role__c), 'Speaker', es.Role__c)}</span></td>
+                                            <td>{!IF(ISBLANK(es.Session_Title__c), es.Speaker__r.Expertise__c, es.Session_Title__c)}</td>
+                                        </tr>
+                                    </apex:repeat>
+                                </tbody>
+                            </table>
+                        </div>
+                    </apex:outputPanel>
 
                     <!-- ALL ATTENDEES ROSTER TABLE -->
                     <div class="roster-section">

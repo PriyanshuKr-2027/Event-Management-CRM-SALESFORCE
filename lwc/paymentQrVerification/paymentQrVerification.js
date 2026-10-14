@@ -17,6 +17,8 @@ export default class PaymentQrVerification extends LightningElement {
     @track upiVpa = 'eventmgmt@upi';
     @track upiIntentUri = '';
 
+    @track totalCountdownSeconds = 10;
+
     countdownInterval = null;
 
     connectedCallback() {
@@ -40,6 +42,7 @@ export default class PaymentQrVerification extends LightningElement {
                     this.gatewayProvider = config.gatewayProvider || 'Simulated_UPI';
                     this.upiVpa = config.upiVpa || 'eventmgmt@upi';
                     if (config.autoVerifySeconds) {
+                        this.totalCountdownSeconds = config.autoVerifySeconds;
                         this.countdownSeconds = config.autoVerifySeconds;
                     }
                 }
@@ -98,7 +101,7 @@ export default class PaymentQrVerification extends LightningElement {
     }
 
     get countdownProgressPercent() {
-        const total = 10;
+        const total = this.totalCountdownSeconds || 10;
         return Math.round(((total - this.countdownSeconds) / total) * 100);
     }
 
@@ -155,14 +158,14 @@ export default class PaymentQrVerification extends LightningElement {
     }
 
     /**
-     * @description Initiates the 10-second verification countdown.
+     * @description Initiates the verification countdown from totalCountdownSeconds.
      */
     handleNextClick() {
         if (!this.isPaymentConfirmedChecked) {
             return;
         }
         this.currentStep = 'verifying';
-        this.countdownSeconds = 10;
+        this.countdownSeconds = this.totalCountdownSeconds || 10;
 
         this.countdownInterval = setInterval(() => {
             if (this.countdownSeconds > 1) {
@@ -173,6 +176,15 @@ export default class PaymentQrVerification extends LightningElement {
                 this.currentStep = 'confirmed';
             }
         }, 1000);
+    }
+
+    /**
+     * @description Shortcut for live training demos to immediately confirm payment without waiting.
+     */
+    handleSkipTimer() {
+        this.clearTimer();
+        this.countdownSeconds = 0;
+        this.currentStep = 'confirmed';
     }
 
     clearTimer() {

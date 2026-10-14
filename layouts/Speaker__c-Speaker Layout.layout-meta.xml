@@ -23,6 +23,10 @@
                 <behavior>Edit</behavior>
                 <field>Status__c</field>
             </layoutItems>
+            <layoutItems>
+                <behavior>Edit</behavior>
+                <field>Photo_URL__c</field>
+            </layoutItems>
         </layoutColumns>
         <layoutColumns>
             <layoutItems>
@@ -82,6 +86,14 @@
         <layoutColumns/>
         <style>CustomLinks</style>
     </layoutSections>
+
+    <relatedLists>
+        <fields>NAME</fields>
+        <fields>Role__c</fields>
+        <fields>Session_Title__c</fields>
+        <fields>Display_Order__c</fields>
+        <relatedList>Event_Speaker__c.Speaker__c</relatedList>
+    </relatedLists>
 
     <showEmailCheckbox>false</showEmailCheckbox>
     <showHighlightsPanel>false</showHighlightsPanel>

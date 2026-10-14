@@ -155,3 +155,26 @@
     border: 1px solid #E2E8F0;
     font-size: 0.9rem;
 }
+
+.simulation-notice {
+    background: #F8FAFC;
+    border: 1px dashed #94A3B8;
+    border-radius: 8px;
+    color: #475569;
+    line-height: 1.35;
+}
+
+.demo-skip-btn {
+    border-color: #0284C7;
+    color: #0284C7;
+    font-size: 0.8rem;
+    font-weight: 600;
+    border-radius: 20px;
+    padding: 4px 14px;
+    transition: all 0.2s ease;
+}
+
+.demo-skip-btn:hover {
+    background: #E0F2FE;
+    color: #0369A1;
+}

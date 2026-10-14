@@ -1,0 +1,87 @@
+/* ── Speaker Selector Component Styles ── */
+
+/* Assigned speaker cards */
+.assigned-card {
+    border-radius: 0.5rem;
+    transition: box-shadow 0.15s ease-in-out;
+    border: 1px solid #d8dde6;
+}
+
+.assigned-card:hover {
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+}
+
+/* Search results container */
+.search-results-container {
+    max-height: 500px;
+    overflow-y: auto;
+}
+
+/* Actionable result cards (available speakers) */
+.card-actionable {
+    border-radius: 0.5rem;
+    border: 1px solid #d8dde6;
+    transition: box-shadow 0.15s ease-in-out, border-color 0.15s ease-in-out;
+    cursor: default;
+}
+
+.card-actionable:hover {
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+    border-color: #1b96ff;
+}
+
+/* Disabled cards (already assigned or unavailable) */
+.card-disabled {
+    border-radius: 0.5rem;
+    border: 1px solid #e5e5e5;
+    background-color: #f4f6f9;
+    opacity: 0.7;
+    cursor: not-allowed;
+}
+
+/* Empty state */
+.empty-state {
+    flex-direction: column;
+    padding: 2rem;
+    text-align: center;
+    border: 2px dashed #d8dde6;
+    border-radius: 0.5rem;
+}
+
+/* Role badge variants */
+.badge-keynote {
+    background-color: #fdd13a;
+    color: #3e3e3c;
+}
+
+.badge-panelist {
+    background-color: #1b96ff;
+    color: #ffffff;
+}
+
+.badge-workshop {
+    background-color: #04844b;
+    color: #ffffff;
+}
+
+.badge-guest {
+    background-color: #ecebea;
+    color: #3e3e3c;
+}
+
+/* Add controls width */
+.add-controls {
+    min-width: 180px;
+}
+
+.role-select {
+    min-width: 160px;
+}
+
+/* Search panel border on large screens */
+@media (min-width: 1024px) {
+    .search-panel {
+        border-left: 1px solid #d8dde6;
+        padding-left: 1.5rem !important;
+    }
+}

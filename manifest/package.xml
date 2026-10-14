@@ -2,18 +2,26 @@
 <Package xmlns="http://soap.sforce.com/2006/04/metadata">
     <types>
         <members>*</members>
+        <members>Attendee__c</members>
+        <members>Event__c</members>
+        <members>Event_Speaker__c</members>
+        <members>Feedback__c</members>
+        <members>Payment__c</members>
+        <members>Registration__c</members>
+        <members>Speaker__c</members>
+        <members>Ticket__c</members>
+        <members>Ticket_Type__c</members>
+        <members>Venue__c</members>
         <name>CustomObject</name>
     </types>
     <types>
-        <members>Speaker__c.*</members>
-        <members>Event__c.*</members>
-        <members>Venue__c.*</members>
-        <members>Attendee__c.*</members>
-        <members>Registration__c.*</members>
-        <members>Payment__c.*</members>
-        <members>Ticket_Type__c.*</members>
-        <members>Ticket__c.*</members>
-        <members>Feedback__c.*</members>
+        <members>*</members>
+        <members>Event_Speaker__c.Display_Order__c</members>
+        <members>Event_Speaker__c.Event__c</members>
+        <members>Event_Speaker__c.Role__c</members>
+        <members>Event_Speaker__c.Session_Title__c</members>
+        <members>Event_Speaker__c.Speaker__c</members>
+        <members>Speaker__c.Photo_URL__c</members>
         <name>CustomField</name>
     </types>
     <types>

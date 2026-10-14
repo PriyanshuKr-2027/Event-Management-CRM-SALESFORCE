@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ValidationRule xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Lock_Ticket_Type_After_Confirmation</fullName>
+    <active>true</active>
+    <description>Prevents direct editing of Ticket Type on confirmed or cancelled registrations to protect inventory and accounting integrity.</description>
+    <errorConditionFormula>AND(
+    NOT(ISNEW()),
+    ISCHANGED(Ticket_Type__c),
+    OR(
+        ISPICKVAL(Registration_Status__c, &quot;Confirmed&quot;),
+        ISPICKVAL(Registration_Status__c, &quot;Cancelled&quot;)
+    )
+)</errorConditionFormula>
+    <errorDisplayField>Ticket_Type__c</errorDisplayField>
+    <errorMessage>Ticket Type cannot be changed directly on a confirmed or cancelled registration. Please cancel and re-book or use the Ticket Upgrade process.</errorMessage>
+</ValidationRule>

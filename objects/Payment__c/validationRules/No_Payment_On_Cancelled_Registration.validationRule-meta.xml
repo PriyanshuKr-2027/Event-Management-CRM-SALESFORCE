@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ValidationRule xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>No_Payment_On_Cancelled_Registration</fullName>
+    <active>true</active>
+    <description>Prevents recording or processing payments for cancelled or rejected registrations.</description>
+    <errorConditionFormula>OR(
+    ISPICKVAL(Registration__r.Registration_Status__c, &quot;Cancelled&quot;),
+    ISPICKVAL(Registration__r.Registration_Status__c, &quot;Rejected&quot;)
+)</errorConditionFormula>
+    <errorDisplayField>Registration__c</errorDisplayField>
+    <errorMessage>Payments cannot be created or processed for cancelled or rejected registrations.</errorMessage>
+</ValidationRule>

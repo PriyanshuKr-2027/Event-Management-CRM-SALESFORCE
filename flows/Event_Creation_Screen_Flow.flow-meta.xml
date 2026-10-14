@@ -24,7 +24,7 @@
         </value>
     </processMetadataValues>
     <processType>Flow</processType>
-    <status>Active</status>
+    <status>Draft</status>
     <start>
         <locationX>50</locationX>
         <locationY>0</locationY>
@@ -199,7 +199,7 @@
                 </rightValue>
             </conditions>
             <connector>
-                <targetReference>Update_Speaker_Assignment</targetReference>
+                <targetReference>Create_Event_Speaker</targetReference>
             </connector>
             <label>Speaker Selected</label>
         </rules>
@@ -336,6 +336,37 @@
         </faultConnector>
         <inputReference>varTicketTypesToCreate</inputReference>
     </recordCreates>
+    <recordCreates>
+        <name>Create_Event_Speaker</name>
+        <label>Create Event Speaker</label>
+        <locationX>88</locationX>
+        <locationY>1520</locationY>
+        <connector>
+            <targetReference>Get_Approval_Threshold</targetReference>
+        </connector>
+        <faultConnector>
+            <targetReference>Creation_Failed_Screen</targetReference>
+        </faultConnector>
+        <inputAssignments>
+            <field>Event__c</field>
+            <value>
+                <elementReference>varEventId</elementReference>
+            </value>
+        </inputAssignments>
+        <inputAssignments>
+            <field>Speaker__c</field>
+            <value>
+                <elementReference>Select_Speaker</elementReference>
+            </value>
+        </inputAssignments>
+        <inputAssignments>
+            <field>Role__c</field>
+            <value>
+                <stringValue>Guest Speaker</stringValue>
+            </value>
+        </inputAssignments>
+        <object>Event_Speaker__c</object>
+    </recordCreates>
     <recordLookups>
         <name>Get_Selected_Venue_Capacity</name>
         <label>Get Selected Venue Capacity</label>
@@ -385,39 +416,6 @@
             <field>Budget_Threshold__c</field>
         </outputAssignments>
     </recordLookups>
-    <recordUpdates>
-        <name>Update_Speaker_Assignment</name>
-        <label>Update Speaker Assignment</label>
-        <locationX>88</locationX>
-        <locationY>1520</locationY>
-        <connector>
-            <targetReference>Get_Approval_Threshold</targetReference>
-        </connector>
-        <faultConnector>
-            <targetReference>Creation_Failed_Screen</targetReference>
-        </faultConnector>
-        <filterLogic>and</filterLogic>
-        <filters>
-            <field>Id</field>
-            <operator>EqualTo</operator>
-            <value>
-                <elementReference>Select_Speaker</elementReference>
-            </value>
-        </filters>
-        <inputAssignments>
-            <field>Event__c</field>
-            <value>
-                <elementReference>varEventId</elementReference>
-            </value>
-        </inputAssignments>
-        <inputAssignments>
-            <field>Status__c</field>
-            <value>
-                <stringValue>Active</stringValue>
-            </value>
-        </inputAssignments>
-        <object>Speaker__c</object>
-    </recordUpdates>
     <recordUpdates>
         <name>Set_Approved</name>
         <label>Set Approved</label>
@@ -808,6 +806,38 @@
         </value>
     </choices>
     <choices>
+        <name>Category_Training</name>
+        <choiceText>Training</choiceText>
+        <dataType>String</dataType>
+        <value>
+            <stringValue>Training</stringValue>
+        </value>
+    </choices>
+    <choices>
+        <name>Category_Hackathon</name>
+        <choiceText>Hackathon</choiceText>
+        <dataType>String</dataType>
+        <value>
+            <stringValue>Hackathon</stringValue>
+        </value>
+    </choices>
+    <choices>
+        <name>Category_Concert</name>
+        <choiceText>Concert</choiceText>
+        <dataType>String</dataType>
+        <value>
+            <stringValue>Concert</stringValue>
+        </value>
+    </choices>
+    <choices>
+        <name>Category_Executive_Summit</name>
+        <choiceText>Executive Summit</choiceText>
+        <dataType>String</dataType>
+        <value>
+            <stringValue>Executive Summit</stringValue>
+        </value>
+    </choices>
+    <choices>
         <name>Category_Webinar</name>
         <choiceText>Webinar</choiceText>
         <dataType>String</dataType>
@@ -821,6 +851,14 @@
         <dataType>String</dataType>
         <value>
             <stringValue>Meetup</stringValue>
+        </value>
+    </choices>
+    <choices>
+        <name>Category_Other</name>
+        <choiceText>Other</choiceText>
+        <dataType>String</dataType>
+        <value>
+            <stringValue>Other</stringValue>
         </value>
     </choices>
     <choices>

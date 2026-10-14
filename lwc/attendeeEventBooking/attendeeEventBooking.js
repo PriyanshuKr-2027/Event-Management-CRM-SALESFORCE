@@ -1,12 +1,15 @@
 import { LightningElement, track, wire } from 'lwc';
+import { NavigationMixin } from 'lightning/navigation';
 import { ShowToastEvent } from 'lightning/platformShowToastEvent';
+import LightningConfirm from 'lightning/confirm';
 import getPublishedEvents from '@salesforce/apex/EventBookingController.getPublishedEvents';
 import getEventTicketTypes from '@salesforce/apex/EventBookingController.getEventTicketTypes';
 import confirmPayment from '@salesforce/apex/EventBookingController.confirmPayment';
 import getMyTickets from '@salesforce/apex/EventBookingController.getMyTickets';
 import bookMultipleTickets from '@salesforce/apex/EventBookingController.bookMultipleTickets';
+import cancelBooking from '@salesforce/apex/EventBookingController.cancelBooking';
 
-export default class AttendeeEventBooking extends LightningElement {
+export default class AttendeeEventBooking extends NavigationMixin(LightningElement) {
     @track activePortalTab = 'events'; // 'events' | 'my-tickets'
     @track currentState = 'BROWSE'; // BROWSE | DETAIL | FLOW | PAYMENT | SOLD_OUT | SUCCESS
     @track events = [];
@@ -28,6 +31,10 @@ export default class AttendeeEventBooking extends LightningElement {
 
     @track myTickets = [];
     @track isLoadingTickets = false;
+
+    // Interactive Ticket Preview Modal state
+    @track isPreviewOpen = false;
+    @track previewTicket = null;
 
 
     connectedCallback() {
@@ -127,6 +134,43 @@ export default class AttendeeEventBooking extends LightningElement {
         return this.selectedTicketType ? `₹${this.selectedTicketType.Price__c}` : '₹0.00';
     }
 
+    get isSelectedTicketLowQuota() {
+        return this.selectedTicketType && !this.selectedTicketType.isSoldOut && (this.selectedTicketType.Available_Seats__c <= 5);
+    }
+
+    get isSelectedTicketAtMax() {
+        return this.selectedTicketType && this.ticketQuantity >= this.maxAllowedTickets;
+    }
+
+    get capacityQuotaWarning() {
+        if (!this.selectedTicketType) return null;
+        if (this.selectedTicketType.isSoldOut || this.selectedTicketType.Available_Seats__c <= 0) {
+            return {
+                variantClass: 'slds-notify slds-notify_alert slds-theme_error capacity-alert-box',
+                icon: 'utility:error',
+                title: 'Quota Sold Out',
+                message: `This ticket tier (${this.selectedTicketType.Name}) has reached its full capacity limit of ${this.selectedTicketType.Quota__c} seats. No further registrations can be accepted.`
+            };
+        }
+        if (this.isSelectedTicketAtMax) {
+            return {
+                variantClass: 'slds-notify slds-notify_alert slds-theme_warning capacity-alert-box',
+                icon: 'utility:warning',
+                title: 'Capacity Quota Limit Reached',
+                message: `You have selected all ${this.maxAllowedTickets} remaining seats for ${this.selectedTicketType.Name} (Quota: ${this.selectedTicketType.Quota__c}). You cannot add more attendees than available quota seats.`
+            };
+        }
+        if (this.isSelectedTicketLowQuota) {
+            return {
+                variantClass: 'slds-notify slds-notify_alert slds-theme_info capacity-alert-box',
+                icon: 'utility:info',
+                title: 'Limited Capacity Notice',
+                message: `High demand: Only ${this.selectedTicketType.Available_Seats__c} seats remain in this quota tier.`
+            };
+        }
+        return null;
+    }
+
     /**
      * @description Fetches published events from the server.
      */
@@ -135,14 +179,23 @@ export default class AttendeeEventBooking extends LightningElement {
         getPublishedEvents()
             .then(result => {
                 const categories = new Set();
+                const statusBadgeMap = {
+                    'Open': 'status-badge status-open',
+                    'Closed': 'status-badge status-closed',
+                    'Draft': 'status-badge status-draft'
+                };
+
                 this.events = result.map(evt => {
                     if (evt.Category__c) {
                         categories.add(evt.Category__c);
                     }
+                    const regStatus = evt.Registration_Status__c || 'Open';
                     return {
                         ...evt,
                         formattedStartDate: this.formatDate(evt.Start_Date_Time__c),
-                        formattedEndDate: this.formatDate(evt.End_Date_Time__c)
+                        formattedEndDate: this.formatDate(evt.End_Date_Time__c),
+                        statusBadgeClass: statusBadgeMap[regStatus] || 'status-badge status-open',
+                        displayStatus: regStatus
                     };
                 });
 
@@ -167,15 +220,34 @@ export default class AttendeeEventBooking extends LightningElement {
         this.isLoadingTickets = true;
         getMyTickets()
             .then(result => {
-                this.myTickets = (result || []).map(tkt => ({
-                    ...tkt,
-                    formattedStartDate: this.formatDate(tkt.eventStartDate)
-                }));
+                this.myTickets = (result || []).map(tkt => {
+                    const isCancelled = tkt.isCancelled || tkt.status === 'Cancelled';
+                    const isUsed = tkt.status === 'Used';
+                    let badgeClass = 'slds-badge slds-theme_success';
+                    if (isCancelled) {
+                        badgeClass = 'slds-badge slds-theme_error';
+                    } else if (isUsed) {
+                        badgeClass = 'slds-badge slds-theme_shade';
+                    }
+                    return {
+                        ...tkt,
+                        isCancelled,
+                        isUsed,
+                        badgeClass,
+                        canCancel: tkt.canCancel && !isCancelled && !isUsed,
+                        cardClass: `ticket-card clickable-ticket-card ${isCancelled ? 'ticket-card-cancelled' : ''}`,
+                        formattedStartDate: this.formatDate(tkt.eventStartDate),
+                        formattedEndDate: this.formatDate(tkt.eventEndDate),
+                        hasSpeakers: tkt.speakers && tkt.speakers.length > 0,
+                        ticketAriaLabel: `Preview admission ticket ${tkt.ticketNumber} for ${tkt.eventName}`
+                    };
+                });
                 this.isLoadingTickets = false;
             })
             .catch(error => {
                 this.isLoadingTickets = false;
                 console.error('Error loading my tickets:', error);
+                this.showToast('Unable to Load Tickets', 'Could not retrieve your booked tickets. Please try again.', 'error');
             });
     }
 
@@ -210,10 +282,125 @@ export default class AttendeeEventBooking extends LightningElement {
         this.currentState = 'BROWSE';
     }
 
+    /**
+     * @description Opens the rich in-app Ticket Preview modal when clicking a ticket tile.
+     */
+    handleTicketCardClick(event) {
+        const ticketId = event.currentTarget.dataset.id;
+        const tkt = this.myTickets.find(t => t.ticketId === ticketId);
+        if (tkt) {
+            this.previewTicket = {
+                ...tkt,
+                hasSpeakers: tkt.speakers && tkt.speakers.length > 0
+            };
+            this.isPreviewOpen = true;
+        }
+    }
+
+    /**
+     * @description Accessible keyboard activation for ticket cards (Enter or Space key).
+     */
+    handleTicketCardKeyDown(event) {
+        if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault();
+            this.handleTicketCardClick(event);
+        }
+    }
+
+    /**
+     * @description Accessible keyboard activation for ticket type selection (Enter or Space key).
+     */
+    handleTicketTypeKeyDown(event) {
+        if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault();
+            this.handleSelectTicketType(event);
+        }
+    }
+
+    /**
+     * @description Closes the in-app Ticket Preview modal.
+     */
+    handleClosePreview() {
+        this.isPreviewOpen = false;
+        this.previewTicket = null;
+    }
+
+    /**
+     * @description Downloads the official PDF pass from inside the preview modal.
+     */
+    handlePreviewDownloadPdf() {
+        if (this.previewTicket && this.previewTicket.printableTicketUrl) {
+            this.navigateToPdf(this.previewTicket.printableTicketUrl);
+        }
+    }
+
+    /**
+     * @description Directly prints/views PDF pass from the ticket card button.
+     * Stops event propagation to prevent triggering the card preview click.
+     */
     handlePrintTicket(event) {
+        event.stopPropagation();
         const url = event.currentTarget.dataset.url;
-        if (url) {
-            window.open(url, '_blank');
+        this.navigateToPdf(url);
+    }
+
+    /**
+     * @description Navigates to the Visualforce PDF URL via NavigationMixin to avoid popup blockers.
+     */
+    navigateToPdf(url) {
+        if (!url) return;
+        this[NavigationMixin.Navigate]({
+            type: 'standard__webPage',
+            attributes: {
+                url: url
+            }
+        });
+    }
+
+    /**
+     * @description Cancels an existing registration and voids associated ticket passes.
+     */
+    async handleCancelBooking(registrationId) {
+        if (!registrationId) return;
+
+        let confirmed = false;
+        try {
+            confirmed = await LightningConfirm.open({
+                message: 'Are you sure you want to cancel this ticket registration? Your ticket pass will be voided and your seat will be released back to the event quota.',
+                variant: 'headerless',
+                label: 'Confirm Cancellation'
+            });
+        } catch (e) {
+            confirmed = window.confirm('Are you sure you want to cancel this ticket registration? Your ticket pass will be voided and your seat will be released back to the event quota.');
+        }
+
+        if (!confirmed) return;
+
+        this.isLoading = true;
+        cancelBooking({ registrationId })
+            .then(result => {
+                this.isLoading = false;
+                this.showToast('Registration Cancelled', result || 'Your registration has been cancelled.', 'success');
+                if (this.isPreviewOpen) {
+                    this.handleClosePreview();
+                }
+                this.loadMyTickets();
+            })
+            .catch(error => {
+                this.isLoading = false;
+                this.showToast('Cancellation Failed', error.body?.message || error.message || 'Unable to cancel booking.', 'error');
+            });
+    }
+
+    handleCancelBookingClick(event) {
+        event.stopPropagation();
+        const registrationId = event.currentTarget.dataset.id;
+        this.handleCancelBooking(registrationId);
+    }
+
+    handleCancelBookingFromPreview() {
+        if (this.previewTicket && this.previewTicket.registrationId) {
+            this.handleCancelBooking(this.previewTicket.registrationId);
         }
     }
 
@@ -252,12 +439,17 @@ export default class AttendeeEventBooking extends LightningElement {
         getEventTicketTypes({ eventId })
             .then(result => {
                 this.ticketTypes = result.map(tt => {
-                    const isSoldOut = tt.Available_Seats__c <= 0 || tt.Status__c === 'Sold Out';
+                    const avail = tt.Available_Seats__c !== undefined && tt.Available_Seats__c !== null ? tt.Available_Seats__c : 0;
+                    const isSoldOut = avail <= 0 || tt.Status__c === 'Sold Out';
+                    const isLowQuota = !isSoldOut && avail <= 5;
                     return {
                         ...tt,
+                        Available_Seats__c: avail,
                         isSoldOut,
+                        isLowQuota,
                         cardClass: `ticket-type-card ${isSoldOut ? 'ticket-disabled' : ''}`,
-                        statusBadgeClass: `slds-badge ${isSoldOut ? 'slds-theme_error' : 'slds-theme_success'}`
+                        statusBadgeClass: `slds-badge ${isSoldOut ? 'slds-theme_error' : (isLowQuota ? 'slds-theme_warning' : 'slds-theme_success')}`,
+                        statusLabel: isSoldOut ? 'Sold Out' : (isLowQuota ? `Only ${avail} Left!` : 'Available')
                     };
                 });
                 this.isLoading = false;
@@ -292,6 +484,8 @@ export default class AttendeeEventBooking extends LightningElement {
         if (this.ticketQuantity < this.maxAllowedTickets) {
             this.ticketQuantity++;
             this.syncAttendeeList();
+        } else {
+            this.showToast('Capacity Limit Reached', `Only ${this.maxAllowedTickets} seats remain available for this ticket tier.`, 'warning');
         }
     }
 

@@ -3,14 +3,18 @@
  * Supports both single-ticket printing and multi-attendee group booking passes.
  * Uses 'without sharing' so that authenticated attendees can generate their PDF admission passes
  * without being blocked by private OWD on parent Event records.
+ * Includes related speakers queried from Event_Speaker__c junction records.
  */
 public without sharing class PrintableTicketExtension {
 
     public Ticket__c primaryTicket { get; set; }
     public List<Ticket__c> groupTickets { get; set; }
+    public List<Event_Speaker__c> eventSpeakers { get; set; }
     public Boolean isGroupBooking { get; set; }
+    public Boolean hasSpeakers { get; set; }
     public Integer totalAttendeeCount { get; set; }
     public Decimal totalGroupPrice { get; set; }
+    public Boolean isCancelled { get; set; }
 
     /**
      * @description Default constructor for custom controller usage.
@@ -36,24 +40,28 @@ public without sharing class PrintableTicketExtension {
     }
 
     /**
-     * @description Queries ticket details and any associated sibling tickets in a group booking.
+     * @description Queries ticket details, associated sibling tickets in a group booking,
+     * and distinguished speakers from the Event_Speaker__c junction.
      * @param ticketId The ID of the Ticket__c record.
      */
     private void init(Id ticketId) {
         this.groupTickets = new List<Ticket__c>();
+        this.eventSpeakers = new List<Event_Speaker__c>();
         this.isGroupBooking = false;
+        this.hasSpeakers = false;
         this.totalAttendeeCount = 1;
         this.totalGroupPrice = 0;
 
         if (ticketId == null) {
             this.primaryTicket = new Ticket__c();
+            this.isCancelled = false;
             return;
         }
 
         List<Ticket__c> currentTickets = [
             SELECT Id, Name, Ticket_Status__c, Issue_Date_Time__c,
                    Registration__c, Registration__r.Name, Registration__r.Booked_Price__c,
-                   Registration__r.Booking_Group_Id__c,
+                   Registration__r.Booking_Group_Id__c, Registration__r.Registration_Status__c,
                    Registration__r.Attendee__r.Name, Registration__r.Attendee__r.Email__c, Registration__r.Attendee__r.Phone__c,
                    Registration__r.Event__c, Registration__r.Event__r.Name,
                    Registration__r.Event__r.Start_Date_Time__c, Registration__r.Event__r.End_Date_Time__c,
@@ -67,10 +75,13 @@ public without sharing class PrintableTicketExtension {
 
         if (currentTickets.isEmpty()) {
             this.primaryTicket = new Ticket__c();
+            this.isCancelled = false;
             return;
         }
 
         this.primaryTicket = currentTickets[0];
+        this.isCancelled = ('Cancelled'.equalsIgnoreCase(this.primaryTicket.Ticket_Status__c)
+            || (this.primaryTicket.Registration__r != null && 'Cancelled'.equalsIgnoreCase(this.primaryTicket.Registration__r.Registration_Status__c)));
         String bookingGroupId = this.primaryTicket.Registration__r != null 
             ? this.primaryTicket.Registration__r.Booking_Group_Id__c 
             : null;
@@ -99,6 +110,19 @@ public without sharing class PrintableTicketExtension {
             if (t.Registration__r != null && t.Registration__r.Booked_Price__c != null) {
                 this.totalGroupPrice += t.Registration__r.Booked_Price__c;
             }
+        }
+
+        // Query Event Speakers from Event_Speaker__c junction
+        if (this.primaryTicket.Registration__r != null && this.primaryTicket.Registration__r.Event__c != null) {
+            Id eventId = this.primaryTicket.Registration__r.Event__c;
+            this.eventSpeakers = [
+                SELECT Id, Speaker__r.Name, Speaker__r.Organization__c, Speaker__r.Expertise__c,
+                       Role__c, Session_Title__c, Display_Order__c
+                FROM Event_Speaker__c
+                WHERE Event__c = :eventId
+                ORDER BY Display_Order__c ASC NULLS LAST, Speaker__r.Name ASC
+            ];
+            this.hasSpeakers = !this.eventSpeakers.isEmpty();
         }
     }
 }

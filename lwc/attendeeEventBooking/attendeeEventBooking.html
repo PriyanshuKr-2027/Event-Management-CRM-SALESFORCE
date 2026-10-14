@@ -79,7 +79,7 @@
                                     <div class="event-card slds-card slds-p-around_medium">
                                         <div class="event-card-header slds-m-bottom_small">
                                             <span class="category-badge">{evt.Category__c}</span>
-                                            <span class="status-badge slds-float_right">Open</span>
+                                            <span class={evt.statusBadgeClass}>{evt.displayStatus}</span>
                                         </div>
                                         <h2 class="event-card-title slds-text-heading_small slds-truncate" title={evt.Name}>{evt.Name}</h2>
                                         <p class="event-venue-info slds-m-top_xx-small slds-text-color_weak slds-truncate">
@@ -94,7 +94,7 @@
                                         <div class="event-capacity-bar slds-m-vertical_small">
                                             <div class="slds-grid slds-grid_align-spread slds-text-body_small slds-m-bottom_xx-small">
                                                 <span>Available Seats:</span>
-                                                <strong>{evt.Remaining_Capacity__c} / {evt.Total_Capacity__c}</strong>
+                                                <strong>{evt.Available_Seats__c} / {evt.Total_Capacity__c}</strong>
                                             </div>
                                         </div>
 
@@ -147,7 +147,14 @@
                             <h3 class="slds-text-heading_medium slds-m-bottom_medium">Select Ticket Type</h3>
                             <div class="ticket-types-list">
                                 <template for:each={ticketTypes} for:item="tt">
-                                    <div key={tt.Id} class={tt.cardClass} onclick={handleSelectTicketType} data-id={tt.Id}>
+                                    <div key={tt.Id} 
+                                         class={tt.cardClass} 
+                                         onclick={handleSelectTicketType} 
+                                         onkeydown={handleTicketTypeKeyDown}
+                                         tabindex="0"
+                                         role="button"
+                                         aria-label={tt.Name}
+                                         data-id={tt.Id}>
                                         <div class="slds-grid slds-grid_align-spread slds-grid_vertical-align-center">
                                             <div>
                                                 <h4 class="ticket-title">{tt.Name}</h4>
@@ -157,7 +164,7 @@
                                             </div>
                                             <div class="slds-text-align_right">
                                                 <div class="ticket-price">₹{tt.Price__c}</div>
-                                                <span class={tt.statusBadgeClass}>{tt.Status__c}</span>
+                                                <span class={tt.statusBadgeClass}>{tt.statusLabel}</span>
                                             </div>
                                         </div>
                                     </div>
@@ -166,11 +173,22 @@
 
                             <!-- Ticket Counter -->
                             <template if:true={selectedTicketType}>
-                                <div class="ticket-counter-card slds-box slds-m-top_medium slds-p-around_medium">
+                                <!-- Live Capacity Quota Validation Banner -->
+                                <template if:true={capacityQuotaWarning}>
+                                    <div class={capacityQuotaWarning.variantClass} role="alert">
+                                        <lightning-icon icon-name={capacityQuotaWarning.icon} size="x-small" class="slds-m-right_x-small"></lightning-icon>
+                                        <div class="capacity-alert-content">
+                                            <strong>{capacityQuotaWarning.title}: </strong>
+                                            <span>{capacityQuotaWarning.message}</span>
+                                        </div>
+                                    </div>
+                                </template>
+
+                                <div class="ticket-counter-card slds-box slds-m-top_small slds-p-around_medium">
                                     <div class="slds-grid slds-grid_vertical-align-center slds-grid_align-spread slds-m-bottom_small">
                                         <div>
                                             <span class="counter-label">Number of Tickets</span>
-                                            <p class="counter-subtext">Min: 1 • Remaining Available: {maxAllowedTickets}</p>
+                                            <p class="counter-subtext">Min: 1 • Remaining Available Quota: {maxAllowedTickets}</p>
                                         </div>
                                         <div class="counter-controls">
                                             <button 
@@ -368,13 +386,22 @@
                     <div class="slds-grid slds-wrap slds-gutters">
                         <template for:each={myTickets} for:item="tkt">
                             <div key={tkt.ticketId} class="slds-col slds-size_1-of-1 slds-medium-size_6-of-12 slds-large-size_4-of-12 slds-m-bottom_large">
-                                <div class="ticket-card">
+                                <div class={tkt.cardClass} 
+                                     tabindex="0"
+                                     role="button"
+                                     aria-label={tkt.ticketAriaLabel}
+                                     data-id={tkt.ticketId} 
+                                     onclick={handleTicketCardClick} 
+                                     onkeydown={handleTicketCardKeyDown}
+                                     title="Click or press Enter to preview ticket pass and speakers">
                                     <div class="ticket-card-header">
                                         <span class="ticket-number">{tkt.ticketNumber}</span>
-                                        <span class="slds-badge slds-theme_success">{tkt.status}</span>
+                                        <span class={tkt.badgeClass}>{tkt.status}</span>
                                     </div>
                                     <div class="ticket-card-body">
-                                        <h3 class="ticket-event-name">{tkt.eventName}</h3>
+                                        <div class="slds-grid slds-grid_align-spread slds-grid_vertical-align-center slds-m-bottom_xx-small">
+                                            <h3 class="ticket-event-name slds-truncate" title={tkt.eventName}>{tkt.eventName}</h3>
+                                        </div>
                                         <div class="ticket-info-row">
                                             <lightning-icon icon-name="utility:event" size="x-small" class="slds-m-right_x-small"></lightning-icon>
                                             <span>{tkt.formattedStartDate}</span>
@@ -393,14 +420,31 @@
                                         </div>
                                     </div>
                                     <div class="ticket-card-footer">
-                                        <span class="slds-text-body_small slds-text-color_weak">Reg: {tkt.registrationNumber}</span>
-                                        <lightning-button 
-                                            variant="brand-outline" 
-                                            label="View / Print Pass" 
-                                            icon-name="utility:print" 
-                                            data-url={tkt.printableTicketUrl}
-                                            onclick={handlePrintTicket}>
-                                        </lightning-button>
+                                        <div>
+                                            <template if:true={tkt.canCancel}>
+                                                <lightning-button 
+                                                    variant="destructive-text" 
+                                                    label="Cancel Ticket" 
+                                                    icon-name="utility:close" 
+                                                    data-id={tkt.registrationId}
+                                                    onclick={handleCancelBookingClick}
+                                                    class="slds-m-right_x-small">
+                                                </lightning-button>
+                                            </template>
+                                        </div>
+                                        <div class="slds-grid slds-grid_vertical-align-center">
+                                            <span class="preview-hint-text slds-m-right_x-small">
+                                                <lightning-icon icon-name="utility:preview" size="xx-small" class="slds-m-right_xx-small"></lightning-icon>
+                                                Preview
+                                            </span>
+                                            <lightning-button 
+                                                variant="brand-outline" 
+                                                label="PDF" 
+                                                icon-name="utility:print" 
+                                                data-url={tkt.printableTicketUrl}
+                                                onclick={handlePrintTicket}>
+                                            </lightning-button>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -417,6 +461,170 @@
                     </div>
                 </template>
             </template>
+        </template>
+
+        <!-- INTERACTIVE TICKET PREVIEW MODAL -->
+        <template if:true={isPreviewOpen}>
+            <section role="dialog" tabindex="-1" aria-modal="true" aria-labelledby="modal-heading-ticket" class="slds-modal slds-fade-in-open slds-modal_medium">
+                <div class="slds-modal__container">
+                    <header class="slds-modal__header ticket-modal-header">
+                        <lightning-button-icon icon-name="utility:close"
+                            alternative-text="Close"
+                            variant="bare-inverse"
+                            class="slds-modal__close"
+                            onclick={handleClosePreview}>
+                        </lightning-button-icon>
+                        <div class="slds-grid slds-grid_vertical-align-center slds-grid_align-spread slds-m-bottom_xx-small">
+                            <div>
+                                <template if:true={previewTicket.eventCategory}>
+                                    <span class="category-badge slds-m-right_small">{previewTicket.eventCategory}</span>
+                                </template>
+                                <span class={previewTicket.badgeClass}>{previewTicket.status}</span>
+                            </div>
+                            <span class="ticket-modal-number">{previewTicket.ticketNumber}</span>
+                        </div>
+                        <h2 id="modal-heading-ticket" class="slds-text-heading_medium ticket-modal-title">
+                            {previewTicket.eventName}
+                        </h2>
+                    </header>
+
+                    <div class="slds-modal__content slds-p-around_large ticket-modal-body" id="modal-content-ticket">
+                        <!-- Cancelled Banner if ticket is voided/cancelled -->
+                        <template if:true={previewTicket.isCancelled}>
+                            <div class="slds-notify slds-notify_alert slds-alert_error slds-m-bottom_medium" role="alert">
+                                <lightning-icon icon-name="utility:ban" size="small" variant="inverse" class="slds-m-right_x-small"></lightning-icon>
+                                <h2><strong>THIS TICKET IS VOID (CANCELLED)</strong> — Admission will be denied at venue check-in.</h2>
+                            </div>
+                        </template>
+
+                        <!-- Key Information Banner -->
+                        <div class="slds-grid slds-wrap slds-gutters slds-m-bottom_medium">
+                            <div class="slds-col slds-size_1-of-1 slds-medium-size_6-of-12 slds-m-bottom_small">
+                                <div class="preview-info-box">
+                                    <div class="preview-info-label">
+                                        <lightning-icon icon-name="utility:event" size="x-small" class="slds-m-right_xx-small"></lightning-icon>
+                                        Date &amp; Time
+                                    </div>
+                                    <div class="preview-info-value">{previewTicket.formattedStartDate}</div>
+                                    <template if:true={previewTicket.formattedEndDate}>
+                                        <div class="preview-info-sub">Ends: {previewTicket.formattedEndDate}</div>
+                                    </template>
+                                </div>
+                            </div>
+                            <div class="slds-col slds-size_1-of-1 slds-medium-size_6-of-12 slds-m-bottom_small">
+                                <div class="preview-info-box">
+                                    <div class="preview-info-label">
+                                        <lightning-icon icon-name="utility:checkin" size="x-small" class="slds-m-right_xx-small"></lightning-icon>
+                                        Venue Location
+                                    </div>
+                                    <div class="preview-info-value">{previewTicket.venueName}</div>
+                                    <div class="preview-info-sub">{previewTicket.venueAddress}, {previewTicket.venueCity}</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Attendee & Pass Details -->
+                        <div class="slds-box slds-m-bottom_medium preview-attendee-card">
+                            <div class="slds-grid slds-wrap slds-gutters">
+                                <div class="slds-col slds-size_1-of-1 slds-medium-size_4-of-12 slds-m-bottom_x-small">
+                                    <span class="preview-field-label">Attendee Name</span>
+                                    <div class="preview-field-val"><strong>{previewTicket.attendeeName}</strong></div>
+                                </div>
+                                <div class="slds-col slds-size_1-of-1 slds-medium-size_4-of-12 slds-m-bottom_x-small">
+                                    <span class="preview-field-label">Email Address</span>
+                                    <div class="preview-field-val">{previewTicket.attendeeEmail}</div>
+                                </div>
+                                <div class="slds-col slds-size_1-of-1 slds-medium-size_4-of-12 slds-m-bottom_x-small">
+                                    <span class="preview-field-label">Phone</span>
+                                    <div class="preview-field-val">{previewTicket.attendeePhone}</div>
+                                </div>
+                                <div class="slds-col slds-size_1-of-1 slds-medium-size_4-of-12 slds-m-top_x-small">
+                                    <span class="preview-field-label">Ticket Tier</span>
+                                    <div class="preview-field-val"><span class="category-badge">{previewTicket.ticketTypeName}</span></div>
+                                </div>
+                                <div class="slds-col slds-size_1-of-1 slds-medium-size_4-of-12 slds-m-top_x-small">
+                                    <span class="preview-field-label">Registration Code</span>
+                                    <div class="preview-field-val"><code>{previewTicket.registrationNumber}</code></div>
+                                </div>
+                                <div class="slds-col slds-size_1-of-1 slds-medium-size_4-of-12 slds-m-top_x-small">
+                                    <span class="preview-field-label">Booked Price</span>
+                                    <div class="preview-field-val text-brand-price">₹{previewTicket.bookedPrice}</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Speakers Section -->
+                        <div class="slds-m-bottom_medium">
+                            <h3 class="preview-section-title">
+                                <lightning-icon icon-name="utility:groups" size="x-small" class="slds-m-right_x-small"></lightning-icon>
+                                Distinguished Speakers
+                            </h3>
+
+                            <template if:true={previewTicket.hasSpeakers}>
+                                <div class="slds-grid slds-wrap slds-gutters">
+                                    <template for:each={previewTicket.speakers} for:item="spk">
+                                        <div key={spk.speakerId} class="slds-col slds-size_1-of-1 slds-medium-size_6-of-12 slds-m-bottom_small">
+                                            <div class="preview-speaker-card">
+                                                <div class="speaker-avatar-circle">
+                                                    <lightning-icon icon-name="standard:avatar" size="small"></lightning-icon>
+                                                </div>
+                                                <div class="speaker-card-details">
+                                                    <div class="speaker-name">{spk.name}</div>
+                                                    <div class="speaker-org">{spk.organization}</div>
+                                                    <div class="slds-m-top_xx-small">
+                                                        <span class="speaker-role-pill">{spk.role}</span>
+                                                    </div>
+                                                    <template if:true={spk.sessionTitle}>
+                                                        <div class="speaker-session">"{spk.sessionTitle}"</div>
+                                                    </template>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </template>
+                                </div>
+                            </template>
+
+                            <template if:false={previewTicket.hasSpeakers}>
+                                <div class="slds-box slds-theme_shade slds-text-align_center slds-p-around_medium">
+                                    <p class="slds-text-color_weak">Speakers will be announced soon for this event.</p>
+                                </div>
+                            </template>
+                        </div>
+
+                        <!-- Simulated Check-In Barcode -->
+                        <div class="preview-barcode-container">
+                            <div class="preview-barcode-lines">||| | ||||| |||| | ||| {previewTicket.ticketNumber} ||| | |||||</div>
+                            <span class="preview-barcode-text">Scan for digital admission pass entry</span>
+                        </div>
+                    </div>
+
+                    <footer class="slds-modal__footer slds-grid slds-grid_align-spread">
+                        <div class="slds-grid slds-grid_vertical-align-center">
+                            <lightning-button 
+                                label="Close" 
+                                variant="neutral" 
+                                onclick={handleClosePreview}
+                                class="slds-m-right_x-small">
+                            </lightning-button>
+                            <template if:true={previewTicket.canCancel}>
+                                <lightning-button 
+                                    label="Cancel Ticket" 
+                                    variant="destructive" 
+                                    icon-name="utility:close" 
+                                    onclick={handleCancelBookingFromPreview}>
+                                </lightning-button>
+                            </template>
+                        </div>
+                        <lightning-button 
+                            label="Download Official PDF Pass" 
+                            icon-name="utility:download" 
+                            variant="brand" 
+                            onclick={handlePreviewDownloadPdf}>
+                        </lightning-button>
+                    </footer>
+                </div>
+            </section>
+            <div class="slds-backdrop slds-backdrop_open"></div>
         </template>
 
     </div>

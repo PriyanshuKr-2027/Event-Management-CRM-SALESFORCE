@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ValidationRule xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Feedback_Must_Match_Registration_Event</fullName>
+    <active>true</active>
+    <description>Ensures the feedback record belongs to the same event and attendee as the linked registration.</description>
+    <errorConditionFormula>OR(
+    Event__c &lt;&gt; Registration__r.Event__c,
+    Attendee__c &lt;&gt; Registration__r.Attendee__c
+)</errorConditionFormula>
+    <errorDisplayField>Event__c</errorDisplayField>
+    <errorMessage>The selected Event and Attendee must match the linked Registration.</errorMessage>
+</ValidationRule>

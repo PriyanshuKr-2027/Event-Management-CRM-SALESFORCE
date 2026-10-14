@@ -48,6 +48,17 @@
         <viewAllRecords>true</viewAllRecords>
     </objectPermissions>
 
+    <!-- Object Permissions: Event_Speaker__c -->
+    <objectPermissions>
+        <allowCreate>true</allowCreate>
+        <allowDelete>true</allowDelete>
+        <allowEdit>true</allowEdit>
+        <allowRead>true</allowRead>
+        <modifyAllRecords>true</modifyAllRecords>
+        <object>Event_Speaker__c</object>
+        <viewAllRecords>true</viewAllRecords>
+    </objectPermissions>
+
     <!-- Object Permissions: Attendee__c -->
     <objectPermissions>
         <allowCreate>true</allowCreate>
@@ -171,6 +182,28 @@
     <fieldPermissions>
         <editable>true</editable>
         <field>Speaker__c.Phone__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>true</editable>
+        <field>Speaker__c.Photo_URL__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+
+    <!-- Field Permissions: Event_Speaker__c -->
+    <fieldPermissions>
+        <editable>true</editable>
+        <field>Event_Speaker__c.Display_Order__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>true</editable>
+        <field>Event_Speaker__c.Role__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>true</editable>
+        <field>Event_Speaker__c.Session_Title__c</field>
         <readable>true</readable>
     </fieldPermissions>
 

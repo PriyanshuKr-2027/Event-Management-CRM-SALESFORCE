@@ -31,6 +31,10 @@ export default class OrganizerDashboard extends NavigationMixin(LightningElement
     view = VIEW.LIST;
     createEventFlowApiName = 'Event_Creation_Screen_Flow';
 
+    // Pagination properties
+    currentPage = 1;
+    pageSize = 6;
+
     // ---- Data loading ----------------------------------------------------
 
     @wire(getMyEvents)
@@ -40,19 +44,22 @@ export default class OrganizerDashboard extends NavigationMixin(LightningElement
             this.allEvents = result.data.map((ev) => this.decorateEvent(ev));
         } else if (result.error) {
             this.allEvents = [];
+            console.error('Error loading dashboard events:', result.error);
         }
     }
 
     decorateEvent(ev) {
         const now = new Date();
         const start = ev.startDateTime ? new Date(ev.startDateTime) : null;
+        const end = ev.endDateTime ? new Date(ev.endDateTime) : null;
+        const isEnded = end ? end < now : (start ? start < now : false);
 
         return {
             ...ev,
             startDateFormatted: start ? start.toLocaleString() : '',
             revenueFormatted: this.formatCurrency(ev.revenue),
             isUpcoming: start ? start >= now : false,
-            isCompleted: ev.registrationStatus === 'Closed',
+            isCompleted: isEnded || ev.registrationStatus === 'Closed',
             statusBadgeClass: this.getStatusBadgeClass(ev.approvalStatus)
         };
     }
@@ -101,6 +108,37 @@ export default class OrganizerDashboard extends NavigationMixin(LightningElement
         return this.filteredEvents.length > 0;
     }
 
+    // Pagination Getters
+    get totalPages() {
+        return Math.ceil(this.filteredEvents.length / this.pageSize) || 1;
+    }
+
+    get pagedEvents() {
+        const start = (this.currentPage - 1) * this.pageSize;
+        return this.filteredEvents.slice(start, start + this.pageSize);
+    }
+
+    get isFirstPage() {
+        return this.currentPage <= 1;
+    }
+
+    get isLastPage() {
+        return this.currentPage >= this.totalPages;
+    }
+
+    get isPaginationVisible() {
+        return this.filteredEvents.length > this.pageSize;
+    }
+
+    get paginationStart() {
+        if (!this.hasEvents) return 0;
+        return (this.currentPage - 1) * this.pageSize + 1;
+    }
+
+    get paginationEnd() {
+        return Math.min(this.currentPage * this.pageSize, this.filteredEvents.length);
+    }
+
     get totalEvents() {
         return this.allEvents.length;
     }
@@ -136,16 +174,31 @@ export default class OrganizerDashboard extends NavigationMixin(LightningElement
 
     // ---- Handlers ----------------------------------------------------------
 
+    handlePrevPage() {
+        if (this.currentPage > 1) {
+            this.currentPage--;
+        }
+    }
+
+    handleNextPage() {
+        if (this.currentPage < this.totalPages) {
+            this.currentPage++;
+        }
+    }
+
     handleSearchChange(event) {
         this.searchTerm = event.target.value;
+        this.currentPage = 1;
     }
 
     handleStatusFilterChange(event) {
         this.statusFilter = event.detail.value;
+        this.currentPage = 1;
     }
 
     handleTimeFilterClick(event) {
         this.timeFilter = event.currentTarget.dataset.filter;
+        this.currentPage = 1;
     }
 
     handleRefresh() {

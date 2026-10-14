@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ValidationRule xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>No_Cancellation_After_Event_Ends</fullName>
+    <active>true</active>
+    <description>Prevents cancelling registrations after the event has already concluded.</description>
+    <errorConditionFormula>AND(
+    ISCHANGED(Registration_Status__c),
+    ISPICKVAL(Registration_Status__c, &quot;Cancelled&quot;),
+    Event__r.End_Date_Time__c &lt; NOW()
+)</errorConditionFormula>
+    <errorDisplayField>Registration_Status__c</errorDisplayField>
+    <errorMessage>Registrations cannot be cancelled after the event has concluded.</errorMessage>
+</ValidationRule>

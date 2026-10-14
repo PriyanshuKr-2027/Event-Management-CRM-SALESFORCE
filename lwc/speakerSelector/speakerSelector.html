@@ -1,0 +1,252 @@
+<template>
+    <!-- ── Main Container ── -->
+    <lightning-card title="Speaker Management" icon-name="standard:people">
+
+        <!-- Loading overlay -->
+        <template if:true={isLoading}>
+            <div class="slds-is-relative slds-p-around_large">
+                <lightning-spinner alternative-text="Loading" size="medium"></lightning-spinner>
+            </div>
+        </template>
+
+        <template if:false={isLoading}>
+            <div class="slds-grid slds-wrap slds-p-around_medium">
+
+                <!-- ══════════════════════════════════════════════
+                     LEFT PANEL: Assigned Speakers
+                     ══════════════════════════════════════════════ -->
+                <div class="slds-col slds-size_1-of-1 slds-large-size_6-of-12 slds-p-right_medium">
+                    <h2 class="slds-text-heading_small slds-m-bottom_small">
+                        <lightning-icon icon-name="utility:groups" size="x-small" class="slds-m-right_x-small"></lightning-icon>
+                        Assigned Speakers
+                        <span class="slds-badge slds-m-left_x-small">{assignedCount}</span>
+                    </h2>
+
+                    <!-- Empty state -->
+                    <template if:true={hasNoAssignedSpeakers}>
+                        <div class="slds-illustration slds-illustration_small slds-p-around_medium slds-align_absolute-center empty-state">
+                            <lightning-icon icon-name="utility:info" size="small" class="slds-m-right_x-small"></lightning-icon>
+                            <p class="slds-text-body_regular slds-text-color_weak">
+                                No speakers assigned yet. Search and add speakers below.
+                            </p>
+                        </div>
+                    </template>
+
+                    <!-- Assigned speaker cards -->
+                    <template for:each={assignedSpeakers} for:item="speaker">
+                        <div key={speaker.eventSpeakerId} class="slds-box slds-m-bottom_x-small assigned-card">
+                            <div class="slds-grid slds-grid_vertical-align-center">
+                                <!-- Avatar -->
+                                <div class="slds-m-right_small">
+                                    <template if:true={speaker.photoUrl}>
+                                        <span class="slds-avatar slds-avatar_circle slds-avatar_medium">
+                                            <img src={speaker.photoUrl} alt={speaker.speakerName} />
+                                        </span>
+                                    </template>
+                                    <template if:false={speaker.photoUrl}>
+                                        <lightning-icon icon-name="standard:avatar" size="medium"></lightning-icon>
+                                    </template>
+                                </div>
+
+                                <!-- Info -->
+                                <div class="slds-grow">
+                                    <p class="slds-text-heading_small">{speaker.speakerName}</p>
+                                    <p class="slds-text-body_small slds-text-color_weak">{speaker.organization}</p>
+
+                                    <!-- View mode -->
+                                    <template if:false={speaker.isEditing}>
+                                        <span class={speaker.roleBadgeClass}>{speaker.role}</span>
+                                        <template if:true={speaker.sessionTitle}>
+                                            <span class="slds-text-body_small slds-m-left_x-small">
+                                                &mdash; {speaker.sessionTitle}
+                                            </span>
+                                        </template>
+                                    </template>
+
+                                    <!-- Inline edit mode -->
+                                    <template if:true={speaker.isEditing}>
+                                        <div class="slds-grid slds-wrap slds-grid_pull-padded-xx-small slds-m-top_xx-small">
+                                            <div class="slds-col slds-size_1-of-2 slds-p-horizontal_xx-small">
+                                                <lightning-combobox
+                                                    label="Role"
+                                                    value={speaker.editRole}
+                                                    options={roleOptions}
+                                                    variant="label-hidden"
+                                                    data-id={speaker.eventSpeakerId}
+                                                    onchange={handleEditRoleChange}>
+                                                </lightning-combobox>
+                                            </div>
+                                            <div class="slds-col slds-size_1-of-2 slds-p-horizontal_xx-small">
+                                                <lightning-input
+                                                    label="Session Title"
+                                                    value={speaker.editSessionTitle}
+                                                    variant="label-hidden"
+                                                    placeholder="Session title"
+                                                    data-id={speaker.eventSpeakerId}
+                                                    onchange={handleEditSessionTitleChange}>
+                                                </lightning-input>
+                                            </div>
+                                        </div>
+                                    </template>
+                                </div>
+
+                                <!-- Actions -->
+                                <div class="slds-no-flex">
+                                    <template if:false={speaker.isEditing}>
+                                        <lightning-button-icon
+                                            icon-name="utility:edit"
+                                            variant="border"
+                                            alternative-text="Edit"
+                                            data-id={speaker.eventSpeakerId}
+                                            onclick={handleEditSpeaker}
+                                            class="slds-m-right_xx-small">
+                                        </lightning-button-icon>
+                                        <lightning-button-icon
+                                            icon-name="utility:delete"
+                                            variant="border"
+                                            alternative-text="Remove"
+                                            data-id={speaker.eventSpeakerId}
+                                            onclick={handleRemoveSpeaker}>
+                                        </lightning-button-icon>
+                                    </template>
+                                    <template if:true={speaker.isEditing}>
+                                        <lightning-button-icon
+                                            icon-name="utility:check"
+                                            variant="brand"
+                                            alternative-text="Save"
+                                            data-id={speaker.eventSpeakerId}
+                                            onclick={handleSaveEdit}
+                                            class="slds-m-right_xx-small">
+                                        </lightning-button-icon>
+                                        <lightning-button-icon
+                                            icon-name="utility:close"
+                                            variant="border"
+                                            alternative-text="Cancel"
+                                            data-id={speaker.eventSpeakerId}
+                                            onclick={handleCancelEdit}>
+                                        </lightning-button-icon>
+                                    </template>
+                                </div>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+
+                <!-- ══════════════════════════════════════════════
+                     RIGHT PANEL: Search & Add Speakers
+                     ══════════════════════════════════════════════ -->
+                <div class="slds-col slds-size_1-of-1 slds-large-size_6-of-12 slds-p-left_medium search-panel">
+                    <h2 class="slds-text-heading_small slds-m-bottom_small">
+                        <lightning-icon icon-name="utility:search" size="x-small" class="slds-m-right_x-small"></lightning-icon>
+                        Search &amp; Add Speakers
+                    </h2>
+
+                    <!-- Search input -->
+                    <lightning-input
+                        type="search"
+                        label="Search Speakers"
+                        variant="label-hidden"
+                        placeholder="Search speakers by name, expertise, or organization..."
+                        value={searchTerm}
+                        onchange={handleSearchInput}>
+                    </lightning-input>
+
+                    <!-- Search spinner -->
+                    <template if:true={isSearching}>
+                        <div class="slds-is-relative slds-p-around_medium">
+                            <lightning-spinner alternative-text="Searching" size="small"></lightning-spinner>
+                        </div>
+                    </template>
+
+                    <!-- Search results -->
+                    <template if:false={isSearching}>
+                        <!-- No results message -->
+                        <template if:true={showNoResults}>
+                            <div class="slds-p-around_medium slds-align_absolute-center">
+                                <p class="slds-text-body_regular slds-text-color_weak">No speakers found.</p>
+                            </div>
+                        </template>
+
+                        <!-- Result cards -->
+                        <div class="slds-m-top_small search-results-container">
+                            <template for:each={searchResults} for:item="result">
+                                <div key={result.speakerId} class={result.cardClass}>
+                                    <div class="slds-grid slds-grid_vertical-align-center">
+                                        <!-- Avatar -->
+                                        <div class="slds-m-right_small">
+                                            <template if:true={result.photoUrl}>
+                                                <span class="slds-avatar slds-avatar_circle slds-avatar_medium">
+                                                    <img src={result.photoUrl} alt={result.name} />
+                                                </span>
+                                            </template>
+                                            <template if:false={result.photoUrl}>
+                                                <lightning-icon icon-name="standard:avatar" size="medium"></lightning-icon>
+                                            </template>
+                                        </div>
+
+                                        <!-- Info -->
+                                        <div class="slds-grow">
+                                            <p class="slds-text-heading_small">{result.name}</p>
+                                            <p class="slds-text-body_small slds-text-color_weak">{result.organization}</p>
+                                            <template if:true={result.expertise}>
+                                                <p class="slds-text-body_small">
+                                                    <lightning-icon icon-name="utility:knowledge_base" size="xx-small" class="slds-m-right_xx-small"></lightning-icon>
+                                                    {result.expertise}
+                                                </p>
+                                            </template>
+
+                                            <!-- Already assigned badge -->
+                                            <template if:true={result.isAlreadyAssigned}>
+                                                <span class="slds-badge slds-badge_lightest slds-m-top_xx-small">Already assigned</span>
+                                            </template>
+
+                                            <!-- Conflict warning -->
+                                            <template if:true={result.isUnavailable}>
+                                                <p class="slds-text-color_error slds-text-body_small slds-m-top_xx-small">
+                                                    <lightning-icon icon-name="utility:warning" size="xx-small" variant="error" class="slds-m-right_xx-small"></lightning-icon>
+                                                    {result.conflictReason}
+                                                </p>
+                                            </template>
+                                        </div>
+
+                                        <!-- Add controls (only for available speakers) -->
+                                        <template if:true={result.isAvailable}>
+                                            <div class="slds-no-flex add-controls">
+                                                <lightning-combobox
+                                                    label="Role"
+                                                    value={result.selectedRole}
+                                                    options={roleOptions}
+                                                    variant="label-hidden"
+                                                    data-id={result.speakerId}
+                                                    onchange={handleResultRoleChange}
+                                                    class="slds-m-bottom_xx-small role-select">
+                                                </lightning-combobox>
+                                                <lightning-input
+                                                    label="Session Title"
+                                                    value={result.sessionTitle}
+                                                    variant="label-hidden"
+                                                    placeholder="Session title (optional)"
+                                                    data-id={result.speakerId}
+                                                    onchange={handleResultSessionTitleChange}
+                                                    class="slds-m-bottom_xx-small">
+                                                </lightning-input>
+                                                <lightning-button
+                                                    label="Add"
+                                                    variant="brand"
+                                                    icon-name="utility:add"
+                                                    data-id={result.speakerId}
+                                                    onclick={handleAddSpeaker}>
+                                                </lightning-button>
+                                            </div>
+                                        </template>
+                                    </div>
+                                </div>
+                            </template>
+                        </div>
+                    </template>
+                </div>
+
+            </div>
+        </template>
+    </lightning-card>
+</template>

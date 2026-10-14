@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ValidationRule xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Lock_Event_And_Attendee</fullName>
+    <active>true</active>
+    <description>Prevents moving a registration to another event or transferring ticket ownership on confirmed/cancelled registrations.</description>
+    <errorConditionFormula>AND(
+    NOT(ISNEW()),
+    OR(
+        ISCHANGED(Event__c),
+        AND(
+            ISCHANGED(Attendee__c),
+            OR(
+                ISPICKVAL(Registration_Status__c, &quot;Confirmed&quot;),
+                ISPICKVAL(Registration_Status__c, &quot;Cancelled&quot;)
+            )
+        )
+    )
+)</errorConditionFormula>
+    <errorDisplayField>Attendee__c</errorDisplayField>
+    <errorMessage>Event cannot be changed after registration is created, and Attendee cannot be changed on confirmed or cancelled registrations.</errorMessage>
+</ValidationRule>

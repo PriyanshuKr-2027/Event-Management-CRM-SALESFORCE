@@ -23,7 +23,7 @@
         <locationX>50</locationX>
         <locationY>0</locationY>
         <connector>
-            <targetReference>Get_Confirmed_Registrations</targetReference>
+            <targetReference>Decision_Event_Starts_Tomorrow</targetReference>
         </connector>
         <filterLogic>and</filterLogic>
         <filters>
@@ -92,6 +92,28 @@
         </connector>
     </assignments>
     <decisions>
+        <name>Decision_Event_Starts_Tomorrow</name>
+        <label>Event Starts Tomorrow?</label>
+        <locationX>176</locationX>
+        <locationY>50</locationY>
+        <defaultConnectorLabel>Not Tomorrow</defaultConnectorLabel>
+        <rules>
+            <name>Starts_Tomorrow_Rule</name>
+            <conditionLogic>and</conditionLogic>
+            <conditions>
+                <leftValueReference>formulaIsTomorrow</leftValueReference>
+                <operator>EqualTo</operator>
+                <rightValue>
+                    <booleanValue>true</booleanValue>
+                </rightValue>
+            </conditions>
+            <connector>
+                <targetReference>Get_Confirmed_Registrations</targetReference>
+            </connector>
+            <label>Starts Tomorrow</label>
+        </rules>
+    </decisions>
+    <decisions>
         <name>Decision_Has_Recipients</name>
         <label>Has Recipients?</label>
         <locationX>176</locationX>
@@ -113,6 +135,11 @@
             <label>Has Recipients</label>
         </rules>
     </decisions>
+    <formulas>
+        <name>formulaIsTomorrow</name>
+        <dataType>Boolean</dataType>
+        <expression>NOT(ISBLANK({!$Record.Start_Date_Time__c})) &amp;&amp; DATEVALUE({!$Record.Start_Date_Time__c}) = TODAY() + 1</expression>
+    </formulas>
     <formulas>
         <name>formulaReminderSubject</name>
         <dataType>String</dataType>

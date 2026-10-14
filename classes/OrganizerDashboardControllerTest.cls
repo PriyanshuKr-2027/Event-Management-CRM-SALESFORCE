@@ -95,6 +95,7 @@ private class OrganizerDashboardControllerTest {
         System.assertEquals(97, dto.availableSeats, 'Available seats should be 150 - 53 = 97.');
         System.assertEquals(2, dto.confirmedRegistrations, 'Should count 2 confirmed registrations.');
         System.assertEquals(300, dto.revenue, 'Revenue should sum confirmed registration booked prices (200 + 100).');
+        System.assertNotEquals(null, dto.endDateTime, 'End date time should be populated.');
     }
 
     @IsTest

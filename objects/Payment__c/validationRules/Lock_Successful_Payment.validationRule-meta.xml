@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ValidationRule xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Lock_Successful_Payment</fullName>
+    <active>true</active>
+    <description>Locks amount, payment method, and registration on completed payments to preserve accounting integrity.</description>
+    <errorConditionFormula>AND(
+    NOT(ISNEW()),
+    ISPICKVAL(PRIORVALUE(Payment_Status__c), &quot;Successful&quot;),
+    OR(
+        ISCHANGED(Amount__c),
+        ISCHANGED(Registration__c),
+        ISCHANGED(Payment_Method__c)
+    )
+)</errorConditionFormula>
+    <errorDisplayField>Amount__c</errorDisplayField>
+    <errorMessage>Successful payments are locked and cannot have their amount, method, or registration modified.</errorMessage>
+</ValidationRule>
